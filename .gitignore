@@ -66,3 +66,5 @@ ElevenLabs/.env
 # OS / tooling
 .DS_Store
 Thumbs.db
+ .env
+.env

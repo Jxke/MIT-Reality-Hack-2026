@@ -65,7 +65,7 @@ The backend uses ElevenLabs batch Speech-to-Text API. You must set your API key 
 
 ```bash
 # Set API key (replace with your actual key)
-export ELEVENLABS_API_KEY="sk_1095c2b800c4bd8795c479200920890c86dd1f391762f8c2"
+export ELEVENLABS_API_KEY=""
 
 # Verify it's set
 echo $ELEVENLABS_API_KEY

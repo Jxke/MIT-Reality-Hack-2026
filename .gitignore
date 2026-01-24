@@ -64,3 +64,5 @@ ElevenLabs/.cache/
 # OS / tooling
 .DS_Store
 Thumbs.db
+ .env
+.env

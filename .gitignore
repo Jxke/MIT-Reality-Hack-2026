@@ -1,0 +1,66 @@
+# Unity
+Unity/[Ll]ibrary/
+Unity/[Tt]emp/
+Unity/[Oo]bj/
+Unity/[Bb]uild/
+Unity/[Bb]uilds/
+Unity/[Ll]ogs/
+Unity/[Uu]serSettings/
+Unity/.vs/
+Unity/.idea/
+Unity/.gradle/
+Unity/*.sln
+Unity/*.csproj
+Unity/*.unityproj
+Unity/*.pidb
+Unity/*.booproj
+Unity/*.svd
+Unity/*.user
+Unity/*.userprefs
+Unity/*.suo
+Unity/*.tmp
+Unity/*.pidb.meta
+Unity/*.pdb
+Unity/*.mdb
+Unity/*.opendb
+Unity/*.VC.db
+
+# Arduino build artifacts
+Arduino/**/*.o
+Arduino/**/*.a
+Arduino/**/*.d
+Arduino/**/*.elf
+Arduino/**/*.hex
+Arduino/**/*.bin
+Arduino/**/*.map
+Arduino/**/.pio/
+Arduino/**/.vscode/
+
+# ElevenLabs outputs/cache (common folders)
+ElevenLabs/outputs/
+ElevenLabs/output/
+ElevenLabs/cache/
+ElevenLabs/.cache/
+
+# Large/binary assets (gitignore cannot filter by size)
+*.psd
+*.ai
+*.blend
+*.fbx
+*.obj
+*.wav
+*.mp3
+*.mp4
+*.mov
+*.mkv
+*.tif
+*.tiff
+*.exr
+*.zip
+*.7z
+*.rar
+*.unitypackage
+
+# OS / tooling
+.DS_Store
+Thumbs.db

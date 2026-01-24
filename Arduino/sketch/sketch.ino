@@ -1,85 +1,64 @@
 #include <Arduino_RouterBridge.h>
 
-const int micPin0 = A0;
-const int micPin1 = A1;
-const int micPin2 = A2;
-const int micPin3 = A3;
+const int micPins[4] = {A0, A1, A2, A3};
+
+// Tune these for your two-state behavior (~2000 and ~4000)
+const int LOW_TH  = 2600;   // below this => inactive
+const int HIGH_TH = 3400;   // above this => active
+
+const uint32_t MIN_GAP_MS = 200; // per channel cooldown
+
+bool activeState[4] = {false, false, false, false};
+uint32_t lastSendMs[4] = {0, 0, 0, 0};
+
+int readMicFast(int pin)
+{
+  // Optional tiny averaging to reduce single-sample jitter
+  int a = analogRead(pin);
+  int b = analogRead(pin);
+  int c = analogRead(pin);
+  return (a + b + c) / 3;
+}
 
 void setup() {
+  Bridge.begin();      // keep the proven order
   Monitor.begin();
   delay(200);
-  analogReadResolution(12); // 0..4095 :contentReference[oaicite:4]{index=4}
-  Monitor.println("Mic p2p test");
+
+  analogReadResolution(12); // 0..4095
+
+  delay(5000); // give Linux/Python time to start + register handlers
+
+  Monitor.println("MCU ready: sending 1..4 via Bridge.notify('mcu_line', msg)");
 }
 
 void loop() {
-  // int minV = 4095, maxV = 0;
-  // const uint32_t windowMs = 30;
-  // uint32_t t0 = micros();
+  uint32_t now = millis();
 
-  // while (micros() - t0 < windowMs * 1000) {
-  //   int v = analogRead(micPin);
-  //   if (v < minV) minV = v;
-  //   if (v > maxV) maxV = v;
-  // }
+  for (int i = 0; i < 4; i++) {
+    int v = readMicFast(micPins[i]);
 
-  // int mid = (minV + maxV) / 2;
-  // int p2p = (maxV - minV);
+    // Hysteresis latch (prevents flicker)
+    bool wasActive = activeState[i];
+    if (v > HIGH_TH) activeState[i] = true;
+    else if (v < LOW_TH) activeState[i] = false;
 
-  int mic0out = getMicAmp(micPin0);
-  int mic1out = getMicAmp(micPin1);
-  int mic2out = getMicAmp(micPin2);
-  int mic3out = getMicAmp(micPin3);
-  if (mic0out < 4000)
-  {
-      Monitor.print("\nmic0: ");
-      Monitor.println(mic0out);
+    // Rising edge + cooldown => send event
+    if (activeState[i] && !wasActive && (now - lastSendMs[i] > MIN_GAP_MS)) {
+      lastSendMs[i] = now;
+
+      int ev = i + 1; // 1..4
+      char msg[4];
+      snprintf(msg, sizeof(msg), "%d", ev);
+
+      Bridge.notify("mcu_line", msg);
+
+      Monitor.print("sent: ");
+      Monitor.print(ev);
+      Monitor.print("  v=");
+      Monitor.println(v);
+    }
   }
-  if (mic1out < 4000)
-  {
-      Monitor.print("\nmic1: ");
-      Monitor.println(mic1out);
-  }
-  if (mic2out < 4000)
-  {
-      Monitor.print("\nmic2: ");
-      Monitor.println(mic2out);
-  }
-  if (mic3out < 4000)
-  {
-      Monitor.print("\nmic3: ");
-      Monitor.println(mic3out);
-  }
-  // Monitor.print("\nmic0: ");
-  // Monitor.println(mic0out);
-  // Monitor.print("\nmic1: ");
-  // Monitor.println(mic1out);
-  // Monitor.print("\nmic2: ");
-  // Monitor.println(mic2out);
-  // Monitor.print("\nmic3: ");
-  // Monitor.println(mic3out);
-  
-  
-  // Monitor.print("mid=");
-  // Monitor.print(mid);
-  // Monitor.print(" p2p=");
-  // Monitor.println(p2p);
 
-  delay(50);
-}
-
-int getMicAmp(int inputPin)
-{
-   int minV = 4095, maxV = 0;
-  const uint32_t windowMs = 30;
-  uint32_t t0 = micros();
-
-  while (micros() - t0 < windowMs * 1000) {
-    int v = analogRead(inputPin);
-    if (v < minV) minV = v;
-    if (v > maxV) maxV = v;
-  }
-  
-  int mid = (minV + maxV) / 2;
-  return mid;
+  delay(10);
 }

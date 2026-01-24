@@ -10,8 +10,6 @@ pyserial>=3.5
 # Speech-to-Text
 requests>=2.31.0
 
-# WebSocket server
-websockets>=12.0
 
 # Optional: MediaPipe for sound classification
 # mediapipe>=0.10.0

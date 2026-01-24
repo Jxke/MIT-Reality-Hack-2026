@@ -5,8 +5,8 @@ Real-time audio captioning system that combines Arduino direction sensing, USB m
 ## Architecture
 
 - **Arduino**: Reads 4 analog amplitude sensors (A0-A3), computes loudest direction + confidence, streams JSON over Serial USB
-- **Python Backend**: Captures audio, performs VAD, transcribes speech (ElevenLabs API), classifies sounds (MediaPipe placeholder), applies gating logic, broadcasts via WebSocket
-- **Unity Client**: Receives caption events via WebSocket and displays in AR
+- **Python Backend**: Captures audio, performs VAD, transcribes speech (ElevenLabs API), classifies sounds (MediaPipe placeholder), applies gating logic, connects to an existing TCP server and sends captions
+- **Unity Client**: Receives caption events via TCP and displays in AR
 
 ## Setup
 
@@ -65,7 +65,7 @@ The backend uses ElevenLabs batch Speech-to-Text API. You must set your API key 
 
 ```bash
 # Set API key (replace with your actual key)
-export ELEVENLABS_API_KEY="sk_1095c2b800c4bd8795c479200920890c86dd1f391762f8c2"
+export ELEVENLABS_API_KEY=""
 
 # Verify it's set
 echo $ELEVENLABS_API_KEY
@@ -104,23 +104,19 @@ python main.py
 ```
 
 The backend will:
-- Auto-detect Arduino serial port
+- Auto-detect Arduino serial port (set `ENABLE_SERIAL=0` to skip)
 - Start audio capture from default microphone
 - Connect to ElevenLabs API for speech transcription
-- Start WebSocket server on `ws://localhost:8765`
+- Connect to TCP server at `tcp://127.0.0.1:7000`
 
 **Note**: Make sure `ELEVENLABS_API_KEY` is set before running, or the backend will fail to initialize.
 
 ### 7. Unity Client Setup
 
 1. Open Unity project
-2. Install NativeWebSocket package:
-   - Window > Package Manager
-   - Click `+` > Add package from git URL
-   - Enter: `https://github.com/endel/NativeWebSocket.git?path=/dist`
-3. Add `CaptionReceiver.cs` to a GameObject in your scene
-4. Configure WebSocket URL if different from default (`ws://localhost:8765`)
-5. Run scene - captions will appear in console (implement UI display as needed)
+2. Add your TCP receiver script to a GameObject in your scene
+3. Configure TCP host/port if different from default (`127.0.0.1:7000`)
+4. Run scene - captions will appear in console (implement UI display as needed)
 
 ## Configuration
 
@@ -146,13 +142,15 @@ MIN_ENERGY = 0.015           # Minimum RMS energy
 ```bash
 # Serial port (auto-detected if not set)
 export SERIAL_PORT=/dev/cu.usbmodem14101
+export ENABLE_SERIAL=1  # Set to 0 to disable direction gating
 
 # ElevenLabs API key (required)
 export ELEVENLABS_API_KEY="your_api_key_here"
 
-# WebSocket server
-export WS_HOST=localhost
-export WS_PORT=8765
+# TCP server (target to connect)
+export TCP_HOST=127.0.0.1
+export TCP_PORT=7000
+export TCP_MESSAGE_FORMAT=text  # text or json
 
 # Logging
 export LOG_LEVEL=DEBUG
@@ -170,36 +168,41 @@ screen /dev/cu.usbmodem14101 115200
 python -c "from backend.serial_reader import SerialReader; r = SerialReader(); r.connect(); print(r.read_line())"
 ```
 
-### Test WebSocket Server
+### Test TCP Server
 
 ```python
-# Test WebSocket connection
-import asyncio
-import websockets
-import json
+# Test TCP connection (from another terminal, or your Unity client)
+import socket
 
-async def test():
-    uri = "ws://localhost:8765"
-    async with websockets.connect(uri) as websocket:
-        # Send test message (if server supports it)
-        # Or just listen for captions
-        async for message in websocket:
-            data = json.loads(message)
-            print(data)
+def test():
+    host = "localhost"
+    port = 7000
+    sock = socket.create_connection((host, port))
+    print(f"Connected to {host}:{port}")
+    while True:
+        data = sock.recv(4096)
+        if not data:
+            break
+        print(data.decode("utf-8").strip())
 
-asyncio.run(test())
+test()
+```
+
+Or run:
+```bash
+python test_tcp_client.py
 ```
 
 ### Test Unity Client
 
 1. Run backend
-2. Run Unity scene with `CaptionReceiver` component
+2. Run Unity scene with your TCP receiver component
 3. Speak into microphone or generate sounds
 4. Check Unity console for caption events
 
 ## Message Format
 
-Caption events sent via WebSocket:
+Caption events sent via TCP (framed as `S...E`). Set `TCP_MESSAGE_FORMAT=json` to send full JSON, or `text` to send just the caption text.
 
 ```json
 {
@@ -234,11 +237,11 @@ Caption events sent via WebSocket:
 - Review API usage limits and billing
 - Check network connectivity to api.elevenlabs.io
 
-### WebSocket Connection Refused
+### TCP Connection Refused
 
-- Verify backend is running: `lsof -i :8765`
+- Verify your TCP server is running on `:7000`
 - Check firewall settings
-- Try different port: `export WS_PORT=8766`
+- Try different port: `export TCP_PORT=7001`
 
 ### No Captions Appearing
 
@@ -280,12 +283,12 @@ soundsight/
 │   ├── vad.py                     # Voice Activity Detection
 │   ├── stt_whisper.py             # Speech-to-Text
 │   ├── classifier_mediapipe.py    # Sound classification
-│   ├── ws_server.py                # WebSocket server
+│   ├── tcp_client.py               # TCP client
 │   └── message_bus.py             # Message coordination
 ├── arduino/
 │   └── loudest_direction.ino      # Arduino firmware
 ├── unity/
-│   └── CaptionReceiver.cs         # Unity WebSocket client
+│   └── (your TCP receiver script)  # Unity TCP client
 ├── requirements.txt
 └── README.md
 ```
@@ -298,4 +301,3 @@ MIT License - Hackathon project
 
 - faster-whisper: https://github.com/guillaumekln/faster-whisper
 - MediaPipe: https://ai.google.dev/edge/mediapipe
-- NativeWebSocket: https://github.com/endel/NativeWebSocket

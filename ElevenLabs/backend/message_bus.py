@@ -2,7 +2,6 @@
 Message bus for coordinating between components
 """
 
-import asyncio
 import logging
 from typing import Optional
 from datetime import datetime
@@ -11,10 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class MessageBus:
-    """Coordinates messages between serial reader, audio processing, and WebSocket server"""
+    """Coordinates messages between serial reader, audio processing, and transport server"""
     
-    def __init__(self, ws_server):
-        self.ws_server = ws_server
+    def __init__(self, transport_server, direction_enabled: bool = True):
+        self.transport_server = transport_server
+        self.direction_enabled = direction_enabled
         
         # Direction tracking for gating
         self.current_direction: Optional[int] = None
@@ -31,6 +31,9 @@ class MessageBus:
         Returns True if direction is stable and meets gating criteria
         """
         from config import DIRECTION_STABLE_MS, MIN_CONFIDENCE
+
+        if not self.direction_enabled:
+            return False
         
         now = timestamp
         
@@ -67,7 +70,7 @@ class MessageBus:
                           confidence: Optional[float] = None,
                           is_final: bool = True):
         """
-        Emit a caption event via WebSocket
+        Emit a caption event via TCP
         
         Args:
             text: Caption text
@@ -104,12 +107,15 @@ class MessageBus:
             "timestamp": datetime.now().timestamp()
         }
         
-        await self.ws_server.broadcast(message)
+        await self.transport_server.broadcast(message)
         logger.info(f"Caption emitted: [{mode}] {text[:50]}... (dir={direction}, conf={confidence:.2f})")
     
     def is_gating_passed(self) -> bool:
         """Check if all gating criteria are met"""
         from config import DIRECTION_STABLE_MS, MIN_CONFIDENCE, MIN_ENERGY
+
+        if not self.direction_enabled:
+            return True
         
         if self.current_direction is None or self.direction_start_time is None:
             return False

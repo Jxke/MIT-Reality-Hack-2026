@@ -98,7 +98,7 @@ class ElevenLabsSTT:
                 data['language'] = language
             
             # Make API request
-            logger.debug(f"Posting audio to ElevenLabs API ({len(wav_bytes)} bytes)")
+            logger.info(f"Sending audio to ElevenLabs ({len(wav_bytes)} bytes)")
             response = requests.post(
                 self.endpoint,
                 headers=headers,
@@ -109,9 +109,11 @@ class ElevenLabsSTT:
             
             # Check response status
             response.raise_for_status()
+            logger.info(f"ElevenLabs response: {response.status_code}")
             
             # Parse JSON response
             result = response.json()
+            logger.info(f"ElevenLabs response payload: {result}")
             
             # Extract transcription text (try common response keys)
             text = None

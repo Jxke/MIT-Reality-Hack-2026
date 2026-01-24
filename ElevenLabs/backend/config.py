@@ -3,9 +3,9 @@ Configuration settings for the SoundSight backend
 """
 
 import os
-from pathlib import Path
 
 # Serial port configuration
+ENABLE_SERIAL = os.getenv("ENABLE_SERIAL", "1").lower() in ("1", "true", "yes", "on")
 SERIAL_PORT = os.getenv("SERIAL_PORT", None)  # Auto-detect if None
 SERIAL_BAUD = 115200
 
@@ -30,9 +30,12 @@ WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")  # tiny, base, small, medium
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")  # cpu or cuda
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")  # int8, int8_float16, float16, float32
 
-# WebSocket server configuration
-WS_HOST = os.getenv("WS_HOST", "localhost")
-WS_PORT = int(os.getenv("WS_PORT", "8765"))
+# TCP client configuration (connect to existing Unity/Arduino TCP server)
+TCP_HOST = os.getenv("TCP_HOST", "10.29.193.69")
+TCP_PORT = int(os.getenv("TCP_PORT", "7000"))
+TCP_MESSAGE_FORMAT = os.getenv("TCP_MESSAGE_FORMAT", "text").lower()
+TCP_FRAME_PREFIX = os.getenv("TCP_FRAME_PREFIX", "S")
+TCP_FRAME_SUFFIX = os.getenv("TCP_FRAME_SUFFIX", "E\n")
 
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

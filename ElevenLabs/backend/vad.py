@@ -48,7 +48,7 @@ class VAD:
                 self.is_speech = True
                 self.hangover_counter = 0
                 self.speech_buffer = [audio_chunk]
-                logger.debug(f"Speech started (energy: {energy:.4f})")
+                logger.info(f"Speech started (energy: {energy:.4f})")
                 return (True, None)
             else:
                 return (False, None)
@@ -63,7 +63,9 @@ class VAD:
                     self.is_speech = False
                     complete_audio = np.concatenate(self.speech_buffer)
                     self.speech_buffer = []
-                    logger.debug(f"Speech ended (energy: {energy:.4f}, duration: {len(complete_audio)/16000:.2f}s)")
+                    logger.info(
+                        f"Speech ended (energy: {energy:.4f}, duration: {len(complete_audio)/16000:.2f}s)"
+                    )
                     return (False, complete_audio)
             else:
                 # Reset hangover counter if energy goes back up

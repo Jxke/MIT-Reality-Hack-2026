@@ -41,6 +41,8 @@ ElevenLabs/outputs/
 ElevenLabs/output/
 ElevenLabs/cache/
 ElevenLabs/.cache/
+ElevenLabs/.env
+.env
 
 # Large/binary assets (gitignore cannot filter by size)
 *.psd

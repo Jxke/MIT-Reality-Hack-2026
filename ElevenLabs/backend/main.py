@@ -1,6 +1,6 @@
 """
 SoundSight Backend - Main orchestrator
-Connects Arduino serial, audio capture, VAD, STT, classifier, and WebSocket server
+Connects Arduino serial, audio capture, VAD, STT, classifier, and TCP client
 """
 
 import asyncio
@@ -9,13 +9,13 @@ import threading
 import time
 from typing import Optional
 import numpy as np
-from config import LOG_LEVEL
+from config import LOG_LEVEL, ENABLE_SERIAL
 from serial_reader import SerialReader
 from audio_stream import AudioStream
 from vad import VAD
 from stt_elevenlabs import ElevenLabsSTT
 from classifier_mediapipe import MediaPipeClassifier
-from ws_server import WebSocketServer
+from tcp_client import TCPClient
 from message_bus import MessageBus
 
 # Configure logging
@@ -30,13 +30,22 @@ class SoundSightBackend:
     """Main backend orchestrator"""
     
     def __init__(self):
-        self.serial_reader = SerialReader()
+        self.serial_reader: Optional[SerialReader] = None
         self.audio_stream = AudioStream()
         self.vad = VAD()
         self.stt = ElevenLabsSTT()
         self.classifier = MediaPipeClassifier()
-        self.ws_server = WebSocketServer()
-        self.message_bus = MessageBus(self.ws_server)
+        self.tcp_client = TCPClient()
+        self.message_bus = MessageBus(self.tcp_client, direction_enabled=ENABLE_SERIAL)
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.last_energy_log = 0.0
+
+        if ENABLE_SERIAL:
+            try:
+                self.serial_reader = SerialReader()
+            except Exception as e:
+                logger.warning(f"Serial disabled: {e}")
+                self.message_bus.direction_enabled = False
         
         self.running = False
         self.serial_thread: Optional[threading.Thread] = None
@@ -46,8 +55,8 @@ class SoundSightBackend:
         """Initialize all components"""
         logger.info("Initializing SoundSight backend...")
         
-        # Initialize WebSocket server
-        await self.ws_server.start()
+        # Initialize TCP client
+        await self.tcp_client.start()
         
         # STT is initialized in __init__ (will raise error if API key missing)
         logger.info("ElevenLabs STT initialized")
@@ -77,16 +86,29 @@ class SoundSightBackend:
             # Update energy level
             energy = AudioStream.get_rms_energy(audio_chunk)
             self.message_bus.update_audio_energy(energy)
+            now = time.time()
+            if now - self.last_energy_log >= 2.0:
+                logger.info(
+                    f"Audio energy: {energy:.4f} (vad_start={self.vad.start_threshold:.3f}, "
+                    f"vad_stop={self.vad.stop_threshold:.3f})"
+                )
+                self.last_energy_log = now
             
             # Process with VAD
             is_speech, complete_audio = self.vad.process(audio_chunk)
             
             if complete_audio is not None:
                 # Speech segment complete, process it
-                asyncio.create_task(self.process_speech_segment(complete_audio))
+                if self.loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.process_speech_segment(complete_audio), self.loop
+                    )
             elif not is_speech:
                 # Not speech, classify as sound event
-                asyncio.create_task(self.process_sound_event(audio_chunk))
+                if self.loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.process_sound_event(audio_chunk), self.loop
+                    )
                 
         except Exception as e:
             logger.error(f"Error handling audio chunk: {e}")
@@ -94,8 +116,9 @@ class SoundSightBackend:
     async def process_speech_segment(self, audio: np.ndarray):
         """Process complete speech segment with STT"""
         try:
-            # Transcribe
-            text = self.stt.transcribe(audio)
+            # Transcribe (blocking I/O offloaded to thread)
+            text = await asyncio.to_thread(self.stt.transcribe, audio)
+            logger.info(f"STT result: {text}")
             
             if text and text != "[NO_SPEECH]" and text != "[TRANSCRIPTION_ERROR]":
                 # Get current direction and confidence from message bus
@@ -121,8 +144,8 @@ class SoundSightBackend:
             if energy < 0.01:  # Skip very quiet sounds
                 return
             
-            # Classify
-            label = self.classifier.classify(audio_chunk)
+            # Classify (potentially heavy; offload to thread)
+            label = await asyncio.to_thread(self.classifier.classify, audio_chunk)
             
             if label and label != "[SILENCE]":
                 direction = self.message_bus.current_direction or 0
@@ -141,13 +164,17 @@ class SoundSightBackend:
     
     def start_serial_reader(self):
         """Start serial reader in background thread"""
+        if not self.serial_reader:
+            logger.info("Serial reader disabled")
+            return
+
         def serial_loop():
             try:
                 self.serial_reader.connect()
                 self.serial_reader.start_reading(self.handle_serial_data)
             except Exception as e:
                 logger.error(f"Serial reader error: {e}")
-                self.running = False
+                self.message_bus.direction_enabled = False
         
         self.serial_thread = threading.Thread(target=serial_loop, daemon=True)
         self.serial_thread.start()
@@ -167,6 +194,7 @@ class SoundSightBackend:
     async def run(self):
         """Main run loop"""
         self.running = True
+        self.loop = asyncio.get_running_loop()
         
         # Start serial reader
         logger.info("Starting serial reader...")
@@ -200,9 +228,9 @@ class SoundSightBackend:
         if self.audio_stream:
             self.audio_stream.stop()
         
-        # Stop WebSocket server
-        if self.ws_server:
-            await self.ws_server.stop()
+        # Stop TCP client
+        if self.tcp_client:
+            await self.tcp_client.stop()
         
         logger.info("Shutdown complete")
 

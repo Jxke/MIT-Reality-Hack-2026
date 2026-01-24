@@ -117,8 +117,9 @@ class SoundSightBackend:
         """Process complete speech segment with STT"""
         try:
             # Transcribe (blocking I/O offloaded to thread)
-            text = await asyncio.to_thread(self.stt.transcribe, audio)
-            logger.info(f"STT result: {text}")
+            sample_rate = self.audio_stream.sample_rate
+            text = await asyncio.to_thread(self.stt.transcribe, audio, sample_rate)
+            logger.info(f"Caption: {text}")
             
             if text and text != "[NO_SPEECH]" and text != "[TRANSCRIPTION_ERROR]":
                 # Get current direction and confidence from message bus

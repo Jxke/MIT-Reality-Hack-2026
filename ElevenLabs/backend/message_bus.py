@@ -30,9 +30,9 @@ class MessageBus:
         Update direction data from Arduino
         Returns True if direction is stable and meets gating criteria
         """
-        from config import DIRECTION_STABLE_MS, MIN_CONFIDENCE
+        from config import DIRECTION_STABLE_MS, MIN_CONFIDENCE, ENABLE_GATING
 
-        if not self.direction_enabled:
+        if not self.direction_enabled or not ENABLE_GATING:
             return False
         
         now = timestamp
@@ -79,7 +79,7 @@ class MessageBus:
             confidence: Confidence value (0.0-1.0) or None
             is_final: Whether this is a final caption
         """
-        from config import MIN_ENERGY
+        from config import MIN_ENERGY, ENABLE_GATING
         
         # Use current direction/confidence if not provided
         if direction is None:
@@ -89,12 +89,13 @@ class MessageBus:
         
         # Check energy threshold
         if self.current_audio_energy < MIN_ENERGY:
-            logger.debug(f"Skipping caption due to low energy: {self.current_audio_energy:.4f} < {MIN_ENERGY}")
+            logger.info(f"Skipping caption due to low energy: {self.current_audio_energy:.4f} < {MIN_ENERGY}")
             return
         
         # Check gating criteria
         if not self.is_gating_passed():
-            logger.debug("Skipping caption - gating criteria not met")
+            if ENABLE_GATING:
+                logger.info("Skipping caption - gating criteria not met")
             return
         
         message = {
@@ -112,7 +113,10 @@ class MessageBus:
     
     def is_gating_passed(self) -> bool:
         """Check if all gating criteria are met"""
-        from config import DIRECTION_STABLE_MS, MIN_CONFIDENCE, MIN_ENERGY
+        from config import DIRECTION_STABLE_MS, MIN_CONFIDENCE, MIN_ENERGY, ENABLE_GATING
+
+        if not ENABLE_GATING:
+            return True
 
         if not self.direction_enabled:
             return True

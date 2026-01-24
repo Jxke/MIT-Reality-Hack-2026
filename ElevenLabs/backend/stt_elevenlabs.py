@@ -9,6 +9,9 @@ import os
 import numpy as np
 import requests
 from typing import Optional
+from pathlib import Path
+from datetime import datetime
+from config import SAVE_AUDIO_DIR, SAVE_AUDIO_MAX
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,32 @@ class ElevenLabsSTT:
         wav_buffer.close()
         
         return wav_bytes
+
+    def _maybe_save_audio(self, audio: np.ndarray, sample_rate: int = 16000) -> None:
+        if not SAVE_AUDIO_DIR:
+            return
+
+        output_dir = Path(SAVE_AUDIO_DIR)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        filename = output_dir / f"stt_{timestamp}.wav"
+
+        audio = np.clip(audio, -1.0, 1.0).astype(np.float32)
+        audio_int16 = (audio * 32767.0).astype(np.int16)
+
+        with wave.open(str(filename), 'wb') as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(audio_int16.tobytes())
+
+        try:
+            files = sorted(output_dir.glob("stt_*.wav"))
+            if SAVE_AUDIO_MAX > 0 and len(files) > SAVE_AUDIO_MAX:
+                for old in files[:len(files) - SAVE_AUDIO_MAX]:
+                    old.unlink(missing_ok=True)
+        except Exception as e:
+            logger.warning(f"Failed to prune saved audio: {e}")
     
     def transcribe(self, audio: np.ndarray, sample_rate: int = 16000, language: Optional[str] = None) -> str:
         """
@@ -78,6 +107,7 @@ class ElevenLabsSTT:
         try:
             # Convert audio to WAV bytes
             wav_bytes = self._audio_to_wav_bytes(audio, sample_rate)
+            self._maybe_save_audio(audio, sample_rate)
             
             # Prepare multipart form data
             files = {
@@ -98,7 +128,7 @@ class ElevenLabsSTT:
                 data['language'] = language
             
             # Make API request
-            logger.info(f"Sending audio to ElevenLabs ({len(wav_bytes)} bytes)")
+            logger.debug(f"Sending audio to ElevenLabs ({len(wav_bytes)} bytes)")
             response = requests.post(
                 self.endpoint,
                 headers=headers,
@@ -109,11 +139,10 @@ class ElevenLabsSTT:
             
             # Check response status
             response.raise_for_status()
-            logger.info(f"ElevenLabs response: {response.status_code}")
+            logger.debug(f"ElevenLabs response: {response.status_code}")
             
             # Parse JSON response
             result = response.json()
-            logger.info(f"ElevenLabs response payload: {result}")
             
             # Extract transcription text (try common response keys)
             text = None

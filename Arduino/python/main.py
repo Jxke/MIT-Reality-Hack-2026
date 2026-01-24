@@ -39,6 +39,7 @@ def serve_tcp():
             client_socket, address = tcp_server.accept()
             print(f"TCP client connected: {address}")
             tcp_clients.append(client_socket)
+            threading.Thread(target=receive_tcp, args=(client_socket, address), daemon=True).start()
             # Send initial value
             try:
                 message = ("S" + latest["value"] + "E" + "\n").encode()
@@ -48,6 +49,54 @@ def serve_tcp():
                 client_socket.close()
         except Exception as e:
             print(f"TCP server error: {e}")
+
+def receive_tcp(client_socket, address):
+    buffer = ""
+    try:
+        while True:
+            data = client_socket.recv(4096)
+            if not data:
+                break
+            chunk = data.decode(errors='replace')
+            print(f"TCP recv raw from {address}: {chunk.strip()}")
+            buffer += chunk
+
+            while True:
+                start = buffer.find("S")
+                end = buffer.find("E", start + 1)
+                if start == -1 or end == -1:
+                    break
+                payload = buffer[start + 1:end]
+                print(f"TCP recv framed from {address}: {payload}")
+                latest["value"] = payload
+                message = ("S" + payload + "E" + "\n").encode()
+                disconnected_clients = []
+                for other_client in tcp_clients:
+                    if other_client is client_socket:
+                        continue
+                    try:
+                        other_client.sendall(message)
+                    except (socket.error, OSError):
+                        disconnected_clients.append(other_client)
+                for other in disconnected_clients:
+                    tcp_clients.remove(other)
+                    try:
+                        other.close()
+                    except Exception:
+                        pass
+                buffer = buffer[end + 1:]
+    except Exception as e:
+        print(f"TCP recv error from {address}: {e}")
+    finally:
+        try:
+            tcp_clients.remove(client_socket)
+        except ValueError:
+            pass
+        try:
+            client_socket.close()
+        except Exception:
+            pass
+        print(f"TCP client disconnected: {address}")
 
 def get_ip():
     # Works well when you're connected to Wi-Fi / hotspot and have a default route.

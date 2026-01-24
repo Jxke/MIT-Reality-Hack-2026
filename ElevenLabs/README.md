@@ -152,6 +152,14 @@ export TCP_HOST=127.0.0.1
 export TCP_PORT=7000
 export TCP_MESSAGE_FORMAT=text  # text or json
 
+# Optional gating/timing
+export ENABLE_GATING=1
+export MAX_SPEECH_SECONDS=8
+
+# Optional debug audio capture
+export SAVE_AUDIO_DIR=./debug_audio
+export SAVE_AUDIO_MAX=5
+
 # Logging
 export LOG_LEVEL=DEBUG
 ```

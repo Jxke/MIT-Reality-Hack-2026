@@ -33,18 +33,20 @@ class TCPClient:
     async def _connect_loop(self):
         while self._running:
             try:
-                logger.info(f"Connecting to TCP server at {self.host}:{self.port}...")
+                logger.debug(f"Connecting to TCP server at {self.host}:{self.port}...")
                 reader, writer = await asyncio.open_connection(self.host, self.port)
                 async with self._lock:
                     self._reader = reader
                     self._writer = writer
-                logger.info("TCP client connected")
+                logger.debug("TCP client connected")
 
                 while self._running:
                     data = await reader.read(1024)
                     if not data:
                         break
-                    logger.info(f"TCP server sent: {data.decode('utf-8', errors='replace').strip()}")
+                    logger.debug(f"TCP server sent: {data.decode('utf-8', errors='replace').strip()}")
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.warning(f"TCP client connection error: {e}")
             finally:
@@ -75,6 +77,8 @@ class TCPClient:
             self._task.cancel()
             try:
                 await self._task
+            except asyncio.CancelledError:
+                pass
             except Exception:
                 pass
             self._task = None
@@ -95,7 +99,7 @@ class TCPClient:
             writer = self._writer
 
         if not writer:
-            logger.debug("TCP client not connected; dropping message")
+            logger.warning("TCP client not connected; caption not sent")
             return
 
         payload = self._encode_message(message)

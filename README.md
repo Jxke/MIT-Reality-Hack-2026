@@ -1,5 +1,6 @@
 # SoundSense - Live Captions and Directional Audio display for AR viewing
-Built for MIT Reality Hack 2026
+Built for MIT Reality Hack 2026, to help people with audio impairments.
+
 [Devpost Page](https://devpost.com/software/soundsense-tfqiv9)
 
 ## Steps to Replicate

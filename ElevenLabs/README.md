@@ -5,8 +5,9 @@ Real-time audio captioning system that combines Arduino direction sensing, USB m
 ## Architecture
 
 - **Arduino**: Reads 4 analog amplitude sensors (A0-A3), computes loudest direction + confidence, streams JSON over Serial USB
-- **Python Backend**: Captures audio, performs VAD, transcribes speech (ElevenLabs API), classifies sounds (MediaPipe placeholder), applies gating logic, connects to an existing TCP server and sends captions
-- **Unity Client**: Receives caption events via TCP and displays in AR
+- **UNO Q TCP Server**: Accepts TCP clients, rebroadcasts sensor + caption frames to all clients
+- **Python Backend (ElevenLabs)**: Captures audio, performs VAD, transcribes speech (ElevenLabs API), applies gating logic, connects as a TCP client to UNO Q and sends captions
+- **Unity Client**: Connects to UNO Q TCP server and receives frames via TCP
 
 ## Setup
 
@@ -21,7 +22,7 @@ Real-time audio captioning system that combines Arduino direction sensing, USB m
 
 ```bash
 # Navigate to project directory
-cd soundsight
+cd ./ElevenLabs
 
 # Create virtual environment
 python3 -m venv venv
@@ -107,16 +108,31 @@ The backend will:
 - Auto-detect Arduino serial port (set `ENABLE_SERIAL=0` to skip)
 - Start audio capture from default microphone
 - Connect to ElevenLabs API for speech transcription
-- Connect to TCP server at `tcp://127.0.0.1:7000`
+- Connect to UNO Q TCP server at `tcp://<UNO_Q_IP>:7000`
 
 **Note**: Make sure `ELEVENLABS_API_KEY` is set before running, or the backend will fail to initialize.
 
-### 7. Unity Client Setup
+### 7. Start the UNO Q TCP Server
+
+On the UNO Q (Linux side), start the TCP server so it can rebroadcast to Unity:
+
+```bash
+python /home/arduino/Arduino/python/main.py
+```
+
+You should see:
+```
+TCP server listening on port 7000
+```
+
+### 8. Unity Client Setup
 
 1. Open Unity project
 2. Add your TCP receiver script to a GameObject in your scene
-3. Configure TCP host/port if different from default (`127.0.0.1:7000`)
+3. Configure TCP host/port to the UNO Q IP (e.g. `10.29.193.69:7000`)
 4. Run scene - captions will appear in console (implement UI display as needed)
+
+**Important**: Parse frames as `S...E\n` (end marker is the literal `E\n`, not any single `E`).
 
 ## Configuration
 
@@ -147,21 +163,35 @@ export ENABLE_SERIAL=1  # Set to 0 to disable direction gating
 # ElevenLabs API key (required)
 export ELEVENLABS_API_KEY="your_api_key_here"
 
-# TCP server (target to connect)
-export TCP_HOST=127.0.0.1
+# TCP server (UNO Q)
+export TCP_HOST=10.29.193.69
 export TCP_PORT=7000
 export TCP_MESSAGE_FORMAT=text  # text or json
 
 # Optional gating/timing
 export ENABLE_GATING=1
 export MAX_SPEECH_SECONDS=8
+export MIN_ENERGY=0.002
 
 # Optional debug audio capture
 export SAVE_AUDIO_DIR=./debug_audio
 export SAVE_AUDIO_MAX=5
 
+# Optional audio device selection
+export AUDIO_DEVICE_INDEX=0
+export AUDIO_USE_DEVICE_DEFAULT=1
+
 # Logging
 export LOG_LEVEL=DEBUG
+```
+
+### Quick Start (recommended)
+
+Use a local `.env` (ignored by git) and load it before running:
+
+```bash
+set -a; source ElevenLabs/.env; set +a
+python3 ElevenLabs/backend/main.py
 ```
 
 ## Testing
@@ -176,14 +206,14 @@ screen /dev/cu.usbmodem14101 115200
 python -c "from backend.serial_reader import SerialReader; r = SerialReader(); r.connect(); print(r.read_line())"
 ```
 
-### Test TCP Server
+### Test TCP Server (UNO Q)
 
 ```python
 # Test TCP connection (from another terminal, or your Unity client)
 import socket
 
 def test():
-    host = "localhost"
+    host = "10.29.193.69"
     port = 7000
     sock = socket.create_connection((host, port))
     print(f"Connected to {host}:{port}")
@@ -257,6 +287,7 @@ Caption events sent via TCP (framed as `S...E`). Set `TCP_MESSAGE_FORMAT=json` t
 - Verify direction gating: direction stable >= 400ms, confidence >= 0.20
 - Check audio energy: `MIN_ENERGY` threshold
 - Enable debug logging: `export LOG_LEVEL=DEBUG`
+- Ensure Unity parses the frame terminator `E\n` (not any single `E`)
 
 ## MediaPipe Integration (TODO)
 
@@ -282,7 +313,7 @@ See `backend/classifier_mediapipe.py` for detailed TODO comments.
 ## Project Structure
 
 ```
-soundsight/
+ElevenLabs/
 ├── backend/
 │   ├── main.py                    # Main orchestrator
 │   ├── config.py                  # Configuration
@@ -293,10 +324,10 @@ soundsight/
 │   ├── classifier_mediapipe.py    # Sound classification
 │   ├── tcp_client.py               # TCP client
 │   └── message_bus.py             # Message coordination
-├── arduino/
-│   └── loudest_direction.ino      # Arduino firmware
+├── Arduino/python/
+│   └── main.py                     # UNO Q TCP server + rebroadcast
 ├── unity/
-│   └── (your TCP receiver script)  # Unity TCP client
+│   └── (your TCP receiver script)  # Unity TCP client (S...E\n framing)
 ├── requirements.txt
 └── README.md
 ```

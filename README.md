@@ -10,7 +10,7 @@ https://devpost.com/software/soundsense-tfqiv9
 SoundSense is a real-time audio captioning system for AR that fuses:
 - **Direction sensing** from a 4-mic Arduino array
 - **USB mic capture + VAD**
-- **Speech-to-text (ElevenLabs)**
+- **Speech-to-text (ElevenLabs API or Whisper.cpp running locally)**
 - **Sound event classification** (placeholder MediaPipe pipeline)
 - **TCP streaming** to Unity or other clients
 
@@ -89,8 +89,8 @@ Connect 4 analog amplitude sensors to `A0–A3`.
 
 - Built an acoustic array of sound sensors (we used KY-037).
 - Connected sensors to Arduino Uno Q.
-- Used DirectBridge to publish MCU sensor data to the Debian MPU over a socket (`https://github.com/ramalamadingdong/bridge_direct`).
-- Ran speech-to-text on the Debian side (Whisper.cpp was the local option; ElevenLabs API was used for higher quality transcription in this repo) (`https://github.com/ggml-org/whisper.cpp`).
+- Used [DirectBridge](https://github.com/ramalamadingdong/bridge_direct) to publish MCU sensor data to the Debian MPU over a socket (`https://github.com/ramalamadingdong/bridge_direct`).
+- Ran speech-to-text on the Debian side ([Whisper.cpp](https://github.com/ggml-org/whisper.cpp) was the local option; ElevenLabs API was used for higher quality transcription in this repo) (`https://github.com/ggml-org/whisper.cpp`).
 - Captured audio from an external USB mic and built WAV segments for transcription.
 - Sent caption payloads over TCP to a Unity AR client.
 - Rendered direction cues and caption boxes in AR.
@@ -135,7 +135,7 @@ See `ElevenLabs/README.md` for a full setup guide and troubleshooting.
 ## Challenges
 
 - Arduino App Lab runs apps in a Docker container and doesn’t expose the compose file, making it hard to add a local model.
-- We used DirectBridge to create a socket between MCU and MPU to pass sensor data into the Linux-side model.
+- We used Rami's [DirectBridge](https://github.com/ramalamadingdong/bridge_direct) to create a socket between MCU and MPU to pass sensor data into the Linux-side model.
 
 ## Accomplishments
 

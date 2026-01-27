@@ -68,3 +68,10 @@ ElevenLabs/.env
 Thumbs.db
  .env
 .env
+# Unity build and library folders
+Reality_Hack_Unity/Library/
+Reality_Hack_Unity/Logs/
+Reality_Hack_Unity/UserSettings/
+Reality_Hack_Unity/.vscode/
+Reality_Hack_Unity/Temp/
+Reality_Hack_Unity/*.apk

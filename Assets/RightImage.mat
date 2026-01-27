@@ -36,7 +36,7 @@ Material:
   - MOTIONVECTORS
   - DepthOnly
   - SHADOWCASTER
-  m_LockedProperties: 
+  m_LockedProperties: :m_CustomRenderQueue
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -65,9 +65,9 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 83b9e0c9464666d41a42248e0c5940f8, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
+        m_Texture: {fileID: 2800000, guid: 6ec747c7c3a390249be5318832dca91f, type: 3}
+        m_Scale: {x: 1.16, y: 0}
+        m_Offset: {x: 0.06, y: 0}
     - _MetallicGlossMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}

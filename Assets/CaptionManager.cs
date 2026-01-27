@@ -29,10 +29,48 @@ public class CaptionManager : MonoBehaviour
     // Called by TCP when text arrives
     public void ShowCaption(string text)
     {
-        GameObject caption = Instantiate(captionPrefab, captionSpawnRoot);
+        Debug.Log($"[CaptionManager] ShowCaption called with text: '{text}', direction: {currentDirection}");
+        
+        // Only show captions when direction is Front
+        if (currentDirection != SoundDirection.Front)
+        {
+            Debug.Log($"[CaptionManager] Caption skipped - direction is {currentDirection}, only showing for Front");
+            return;
+        }
 
+        if (captionPrefab == null)
+        {
+            Debug.LogError("[CaptionManager] captionPrefab is not assigned!");
+            return;
+        }
+
+        if (captionSpawnRoot == null)
+        {
+            Debug.LogError("[CaptionManager] captionSpawnRoot is not assigned!");
+            return;
+        }
+
+        Debug.Log($"[CaptionManager] Showing caption: '{text}' in direction {currentDirection}");
+
+        GameObject caption = Instantiate(captionPrefab, captionSpawnRoot);
+        
+        if (caption == null)
+        {
+            Debug.LogError("[CaptionManager] Failed to instantiate caption!");
+            return;
+        }
+
+        caption.SetActive(true);
         TMP_Text tmp = caption.GetComponentInChildren<TMP_Text>();
+        
+        if (tmp == null)
+        {
+            Debug.LogError("[CaptionManager] Caption prefab doesn't have TMP_Text component!");
+            return;
+        }
+
         tmp.text = text;
+        Debug.Log($"[CaptionManager] Caption text set to: {text}");
 
         PositionCaption(caption.transform, currentDirection);
 

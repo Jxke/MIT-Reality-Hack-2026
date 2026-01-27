@@ -182,6 +182,14 @@ namespace Sngty
             }
         }
 
+        /// <summary>
+        /// Directly process an incoming message (used by debugger and local testing)
+        /// </summary>
+        public void ProcessMessage(string message)
+        {
+            HandleIncomingMessage(message);
+        }
+
         public void DisconnectAll()
         {
             if (tcpClient != null)

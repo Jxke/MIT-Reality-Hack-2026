@@ -9,6 +9,8 @@ namespace Sngty
         public SingularityManager receiver;
         public bool autoFindReceiver = true;
 
+        [SerializeField] CaptionManager captionManager;
+
         [Header("UI")]
         public Image leftGradient;
         public Image rightGradient;
@@ -144,6 +146,7 @@ namespace Sngty
 
             Unsubscribe();
             receiver.onMessageRecieved.AddListener(HandleMessage);
+            receiver.onMessageRecieved.AddListener(captionManager.ShowCaption);
             subscribedReceiver = receiver;
         }
 

@@ -18,9 +18,9 @@ SoundSense is a real-time audio captioning system for AR that fuses:
 
 Main video: https://vimeo.com/1158210043?fl=pl&fe=vl
 
-![SoundSense](assets/soundsense-gallery.jpg)
-
-![SoundSense Logo](assets/soundsense-logo.jpg)
+| SoundSense Gallery | SoundSense Logo |
+| --- | --- |
+| ![SoundSense](assets/soundsense-gallery.jpg) | ![SoundSense Logo](assets/soundsense-logo.jpg) |
 
 ## Inspiration
 
@@ -33,9 +33,9 @@ SoundSense provides directional audio and speech awareness to users with hearing
 - The Arduino Uno Q publishes sensor data to the Linux MPU, which forwards it over TCP.
 - Captions and direction of sound amplitude are displayed to the user in AR.
 
-![Product Image #1: Sound Sensor Array](assets/product-sound-sensor-array-1.jpg)
-![Product Image #2: Sound Sensor Array](assets/product-sound-sensor-array-2.jpg)
-![Product Image #3: Sound Sensor Array](assets/product-sound-sensor-array-3.jpg)
+| Sound Sensor Array #1 | Sound Sensor Array #2 | Sound Sensor Array #3 |
+| --- | --- | --- |
+| ![Product Image #1: Sound Sensor Array](assets/product-sound-sensor-array-1.jpg) | ![Product Image #2: Sound Sensor Array](assets/product-sound-sensor-array-2.jpg) | ![Product Image #3: Sound Sensor Array](assets/product-sound-sensor-array-3.jpg) |
 
 ## Repo Layout
 
@@ -97,9 +97,9 @@ Connect 4 analog amplitude sensors to `A0–A3`.
 
 Note: Some on-device code used during the hackathon may not be included in this repo.
 
-![3D Printed Casing for Sound Sensor](assets/3d-printed-sensor-casing.jpg)
-![Wearable Sound Sensors with Case](assets/wearable-sensors-with-case.jpg)
-![Arduino UNO Q in 3D Printed Case](assets/arduino-uno-q-in-case.jpg)
+| 3D Printed Casing | Wearable Sensors | Arduino UNO Q in Case |
+| --- | --- | --- |
+| ![3D Printed Casing for Sound Sensor](assets/3d-printed-sensor-casing.jpg) | ![Wearable Sound Sensors with Case](assets/wearable-sensors-with-case.jpg) | ![Arduino UNO Q in 3D Printed Case](assets/arduino-uno-q-in-case.jpg) |
 
 ## Steps to Replicate (High Level)
 
@@ -128,9 +128,9 @@ See `ElevenLabs/README.md` for a full setup guide and troubleshooting.
 
 ## Testing + Demos
 
-![Testing Arduino communication with Meta Quest through TCP](assets/testing-arduino-quest-tcp.jpg)
-![Testing XR Application](assets/testing-xr-application-1.jpg)
-![Testing XR Application](assets/testing-xr-application-2.jpg)
+| Arduino + Quest TCP | XR App Test #1 | XR App Test #2 |
+| --- | --- | --- |
+| ![Testing Arduino communication with Meta Quest through TCP](assets/testing-arduino-quest-tcp.jpg) | ![Testing XR Application](assets/testing-xr-application-1.jpg) | ![Testing XR Application](assets/testing-xr-application-2.jpg) |
 
 ## Challenges
 
@@ -169,3 +169,13 @@ See `ElevenLabs/README.md` for a full setup guide and troubleshooting.
 ## Team
 
 ![Team Photo](assets/team-photo.jpg)
+
+- Awassada Ariyaphuttarat
+- Esha Morakhiya
+- Jake Tan
+- John Travis Hunter
+- Laksh Vadbheru
+
+## License
+
+MIT License.

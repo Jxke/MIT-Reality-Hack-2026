@@ -3,7 +3,7 @@ import os
 import time
 
 from audio import get_audio
-from arduino_client import ArduinoServer
+from arduino_server import ArduinoServer
 from ar_server import ARServer
 from whisper_client import transcribe
 

@@ -18,10 +18,11 @@ class ArduinoClient:
 
     RECONNECT_DELAY = 3  # seconds between reconnect attempts
 
-    def __init__(self, socket_path: str):
+    def __init__(self, socket_path: str, on_message=None):
         self.socket_path = socket_path
         self._latest: dict = {}
         self._lock = threading.Lock()
+        self._on_message = on_message
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self):
@@ -58,6 +59,7 @@ class ArduinoClient:
             conn.close()
 
     def _process(self, msg):
+        print(f"[arduino-raw] {msg!r}", flush=True)
         # MsgPack-RPC notification: [2, method, params]
         if not isinstance(msg, (list, tuple)) or len(msg) < 3 or msg[0] != 2:
             logging.debug(f"Ignoring non-notification message: {msg!r}")
@@ -73,6 +75,8 @@ class ArduinoClient:
                     self._latest["direction"] = dir_str
                     self._latest["volume"] = int(vol_str)
                 logging.info(f"Direction: {dir_str}, volume: {vol_str}")
+                if self._on_message:
+                    self._on_message("direction", {"direction": dir_str, "volume": int(vol_str)})
             except (ValueError, AttributeError) as e:
                 logging.warning(f"Bad direction payload {payload!r}: {e}")
 
@@ -81,9 +85,13 @@ class ArduinoClient:
             with self._lock:
                 self._latest["audio"] = payload
             logging.debug(f"Audio packet: {len(payload)} samples")
+            if self._on_message:
+                self._on_message("audio", {"samples": len(payload)})
 
         else:
             logging.debug(f"Unknown topic: {topic!r}")
+            if self._on_message:
+                self._on_message(topic, payload)
 
     def _run(self):
         while True:

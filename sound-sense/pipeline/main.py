@@ -33,11 +33,16 @@ def _arduino_audio_to_wav(samples: list) -> bytes:
 
 
 def main():
-    arduino = ArduinoClient(ARDUINO_SOCKET)
     ar_server = ARServer(AR_HOST, AR_PORT)
-
-    arduino.start()
     ar_server.start()
+
+    def on_arduino_message(topic: str, data: dict):
+        print(f"[arduino] {topic}: {data}", flush=True)
+        if topic == "direction":
+            ar_server.broadcast(data)
+
+    arduino = ArduinoClient(ARDUINO_SOCKET, on_message=on_arduino_message)
+    arduino.start()
 
     mic_source = "arduino" if USE_ARDUINO_MIC else "USB"
     logging.info(f"Pipeline running (mic source: {mic_source})")
@@ -58,7 +63,7 @@ def main():
 
         text = transcribe(audio)
 
-        if text or arduino_data:
+        if text:
             message = {"text": text, **arduino_data}
             logging.info(f"Broadcasting: {message}")
             ar_server.broadcast(message)

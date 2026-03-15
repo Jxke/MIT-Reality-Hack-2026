@@ -30,14 +30,32 @@ if ! command -v arduino-cli &>/dev/null; then
   exit 1
 fi
 
+echo "=== arduino-cli board list ==="
+arduino-cli board list 2>&1 || true
+echo ""
+
+# Show all /dev/tty* devices present
+echo "=== /dev/tty* devices ==="
+ls /dev/ttyACM* /dev/ttyUSB* /dev/ttyS* 2>/dev/null || echo "(none found)"
+echo ""
+
 if [[ -z "$PORT" ]]; then
-  PORT=$(arduino-cli board list 2>/dev/null | grep -i "arduino\|ttyACM\|ttyUSB" | awk '{print $1}' | head -1)
+  PORT=$(arduino-cli board list 2>/dev/null | awk '{print $1}' | grep -E '^/dev/tty' | head -1)
   if [[ -z "$PORT" ]]; then
-    echo "Error: no Arduino detected. Connect the board or use --port /dev/ttyACM0"
+    echo "Error: no /dev/tty* port detected in board list."
+    echo "Tip: try --port /dev/ttyACM0 (or whatever appears above)"
     exit 1
   fi
-  echo "Detected port: $PORT"
+  echo "Auto-detected port: $PORT"
 fi
 
+# Verify the port actually exists
+if [[ ! -e "$PORT" ]]; then
+  echo "Error: port $PORT does not exist"
+  exit 1
+fi
+
+echo "Port permissions: $(ls -la "$PORT")"
+echo ""
 echo "=== Serial monitor on $PORT @ ${BAUD} baud (Ctrl+C to quit) ==="
-arduino-cli monitor --port "$PORT" --config "baudrate=$BAUD"
+arduino-cli monitor --port "$PORT" --config "baudrate=$BAUD" --timestamp

@@ -35,7 +35,7 @@ fi
 
 # Auto-detect port if not specified
 if [[ -z "$PORT" ]]; then
-  PORT=$(arduino-cli board list 2>/dev/null | grep -i "arduino\|ttyACM\|ttyUSB" | awk '{print $1}' | head -1)
+  PORT=$(arduino-cli board list 2>/dev/null | awk '{print $1}' | grep -E '^/dev/tty' | head -1)
   if [[ -z "$PORT" ]]; then
     echo "Error: no Arduino detected. Connect the board or use --port /dev/ttyACM0"
     exit 1

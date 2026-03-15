@@ -37,4 +37,4 @@ else
   echo $! > /tmp/arduino-router.pid
 fi
 
-podman-compose up $BUILD_FLAG -d
+podman-compose up --force-recreate $BUILD_FLAG -d

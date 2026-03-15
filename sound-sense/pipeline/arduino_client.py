@@ -1,19 +1,22 @@
 import logging
 import socket
 import threading
+import time
 
 import msgpack
 
 
-class ArduinoServer:
-    """TCP server the Arduino RouterBridge connects to.
+class ArduinoClient:
+    """Client that connects to arduino-router's MsgPack-RPC service.
 
-    Expects MsgPack-framed messages of the form [topic, payload] matching
-    the sketch's Bridge.notify() calls:
+    arduino-router listens on ARDUINO_HOST:ARDUINO_PORT and streams
+    MsgPack-RPC notifications from the sketch's Bridge.notify() calls:
 
-      ["direction", "front,150"]   — direction + peak volume string
-      ["audio",     [0, -3, 5, …]] — signed 8-bit PCM samples
+      [2, "direction", "front,150"]   — direction + peak volume
+      [2, "audio",    [0, -3, 5, …]] — signed 8-bit PCM samples
     """
+
+    RECONNECT_DELAY = 3  # seconds between reconnect attempts
 
     def __init__(self, host: str, port: int):
         self.host = host
@@ -29,8 +32,18 @@ class ArduinoServer:
         with self._lock:
             return dict(self._latest)
 
-    def _handle(self, conn: socket.socket, addr):
-        logging.info(f"Arduino connected from {addr}")
+    def _connect(self) -> socket.socket:
+        while True:
+            try:
+                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.connect((self.host, self.port))
+                logging.info(f"Connected to arduino-router at {self.host}:{self.port}")
+                return conn
+            except OSError as e:
+                logging.warning(f"arduino-router not available ({e}), retrying in {self.RECONNECT_DELAY}s")
+                time.sleep(self.RECONNECT_DELAY)
+
+    def _handle(self, conn: socket.socket):
         unpacker = msgpack.Unpacker(raw=False)
         try:
             while True:
@@ -41,17 +54,17 @@ class ArduinoServer:
                 for msg in unpacker:
                     self._process(msg)
         except OSError as e:
-            logging.warning(f"Arduino connection error: {e}")
+            logging.warning(f"arduino-router connection lost: {e}")
         finally:
             conn.close()
-            logging.info(f"Arduino disconnected from {addr}")
 
     def _process(self, msg):
-        if not isinstance(msg, (list, tuple)) or len(msg) < 2:
-            logging.warning(f"Unexpected message format: {msg!r}")
+        # MsgPack-RPC notification: [2, method, params]
+        if not isinstance(msg, (list, tuple)) or len(msg) < 3 or msg[0] != 2:
+            logging.debug(f"Ignoring non-notification message: {msg!r}")
             return
 
-        topic, payload = msg[0], msg[1]
+        topic, payload = msg[1], msg[2]
 
         if topic == "direction":
             # payload: "front,150"
@@ -74,14 +87,8 @@ class ArduinoServer:
             logging.debug(f"Unknown topic: {topic!r}")
 
     def _run(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server.bind((self.host, self.port))
-            server.listen()
-            logging.info(f"Arduino server listening on {self.host}:{self.port}")
-            while True:
-                try:
-                    conn, addr = server.accept()
-                    threading.Thread(target=self._handle, args=(conn, addr), daemon=True).start()
-                except OSError as e:
-                    logging.error(f"Arduino server accept error: {e}")
+        while True:
+            conn = self._connect()
+            self._handle(conn)
+            logging.info(f"Reconnecting to arduino-router in {self.RECONNECT_DELAY}s")
+            time.sleep(self.RECONNECT_DELAY)

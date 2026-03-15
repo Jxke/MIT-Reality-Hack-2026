@@ -18,6 +18,7 @@ services:
     depends_on:
       - whisper-stt
     environment:
+      - USE_ARDUINO_MIC=${USE_ARDUINO_MIC}
       - WHISPER_URL=http://localhost:8080
       - ARDUINO_HOST=${ARDUINO_HOST}
       - ARDUINO_PORT=${ARDUINO_PORT}

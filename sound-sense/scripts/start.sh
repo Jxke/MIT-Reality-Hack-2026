@@ -24,7 +24,8 @@ fi
 set -a; source .env; set +a
 
 # Start arduino-router (connects to MCU over USB, exposes MsgPack-RPC on ARDUINO_PORT)
-SERIAL_PORT=$(ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null | head -1)
+# On Arduino UNO Q, the MCU communicates with the MPU via internal UART
+SERIAL_PORT=$(ls /dev/ttyMSM0 /dev/ttyHS1 /dev/ttyACM* /dev/ttyUSB* 2>/dev/null | head -1 || true)
 if [[ -z "$SERIAL_PORT" ]]; then
   echo "Warning: no Arduino serial port found, skipping arduino-router"
 else

@@ -18,7 +18,7 @@ class ARServer:
         self._thread.start()
 
     def broadcast(self, message: dict):
-        data = (json.dumps(message) + "\n").encode()
+        data = ("S" + json.dumps(message) + "E\n").encode()
         with self._lock:
             dead = []
             for client in self._clients:

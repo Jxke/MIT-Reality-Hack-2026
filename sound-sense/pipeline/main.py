@@ -39,7 +39,12 @@ def main():
     def on_arduino_message(topic: str, data: dict):
         print(f"[arduino] {topic}: {data}", flush=True)
         if topic == "direction":
-            ar_server.broadcast(data)
+            ar_server.broadcast({
+                "type": "direction",
+                "direction": data.get("direction", "none"),
+                "volume": data.get("volume", 0),
+                "timestamp": time.time(),
+            })
 
     arduino = ArduinoClient(ARDUINO_SOCKET, on_message=on_arduino_message)
     arduino.start()
@@ -64,7 +69,15 @@ def main():
         text = transcribe(audio)
 
         if text:
-            message = {"text": text, **arduino_data}
+            message = {
+                "type": "caption",
+                "mode": "speech",
+                "text": text,
+                "isFinal": True,
+                "direction": arduino_data.get("direction", "none"),
+                "volume": arduino_data.get("volume", 0),
+                "timestamp": time.time(),
+            }
             logging.info(f"Broadcasting: {message}")
             ar_server.broadcast(message)
 

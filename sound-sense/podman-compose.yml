@@ -19,7 +19,7 @@ services:
       - whisper-stt
     environment:
       - WHISPER_URL=http://localhost:8080
-      - ARDUINO_HOST=${ARDUINO_HOST:-localhost}
+      - ARDUINO_HOST=${ARDUINO_HOST:-0.0.0.0}
       - ARDUINO_PORT=${ARDUINO_PORT:-9000}
       - AR_HOST=0.0.0.0
       - AR_PORT=${AR_PORT:-9001}

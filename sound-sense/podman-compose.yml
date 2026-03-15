@@ -8,7 +8,7 @@ services:
       /app/build/bin/whisper-server
       --host 0.0.0.0
       --port 8080
-      --model /models/${WHISPER_MODEL:-ggml-base.en.bin}
+      --model /models/${WHISPER_MODEL}
       --threads 4
     restart: unless-stopped
 
@@ -19,11 +19,11 @@ services:
       - whisper-stt
     environment:
       - WHISPER_URL=http://localhost:8080
-      - ARDUINO_HOST=${ARDUINO_HOST:-0.0.0.0}
-      - ARDUINO_PORT=${ARDUINO_PORT:-9000}
+      - ARDUINO_HOST=${ARDUINO_HOST}
+      - ARDUINO_PORT=${ARDUINO_PORT}
       - AR_HOST=0.0.0.0
-      - AR_PORT=${AR_PORT:-9001}
-      - POLL_INTERVAL=${POLL_INTERVAL:-1.0}
+      - AR_PORT=${AR_PORT}
+      - POLL_INTERVAL=${POLL_INTERVAL}
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
     volumes:
       - /run/user/1000/pulse/native:/run/user/1000/pulse/native

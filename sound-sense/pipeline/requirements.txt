@@ -1,6 +1,5 @@
-setuptools
 requests
 numpy
 sounddevice
 soundfile
-webrtcvad
+webrtcvad-wheels

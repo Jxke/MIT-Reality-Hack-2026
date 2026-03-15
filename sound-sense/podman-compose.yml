@@ -24,4 +24,7 @@ services:
       - AR_HOST=0.0.0.0
       - AR_PORT=${AR_PORT:-9001}
       - POLL_INTERVAL=${POLL_INTERVAL:-1.0}
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+    volumes:
+      - /run/user/1000/pulse/native:/run/user/1000/pulse/native
     restart: unless-stopped

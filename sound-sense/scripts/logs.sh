@@ -14,4 +14,4 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-podman-compose logs -f
+podman-compose logs -f --names

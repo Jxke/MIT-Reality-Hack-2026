@@ -10,7 +10,7 @@ types the sketch emits:
 Usage:
   ./test-arduino.py [--socket PATH] [--timeout SECS]
 
-Pass if both message types are received within the timeout.
+Pass if both message types are received within the timeout and payloads are valid.
 """
 
 import argparse
@@ -23,11 +23,53 @@ try:
 except ImportError:
     import subprocess
     print("msgpack not found, installing...")
-    subprocess.check_call(["sudo", "apt-get", "install", "-y", "python3-msgpack"])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "msgpack"])
     import msgpack
 
 SOCKET_PATH = "/var/run/arduino-router.sock"
 DEFAULT_TIMEOUT = 10  # seconds to wait for both message types
+
+VALID_DIRECTIONS = {"front", "back", "left", "right", "none"}
+VOLUME_MAX = 2048   # 12-bit ADC range
+AUDIO_PACKET_SIZE = 128  # samples per packet (~16ms @ 8000 Hz)
+SAMPLE_MIN, SAMPLE_MAX = -128, 127  # signed 8-bit PCM
+
+
+def validate_direction(payload) -> list[str]:
+    """Return list of validation errors for a direction payload."""
+    errors = []
+    if not isinstance(payload, str):
+        return [f"expected str, got {type(payload).__name__}"]
+    parts = payload.split(",", 1)
+    if len(parts) != 2:
+        return [f"expected 'direction,volume', got {payload!r}"]
+    dir_str, vol_str = parts
+    if dir_str not in VALID_DIRECTIONS:
+        errors.append(f"unknown direction {dir_str!r} (expected one of {sorted(VALID_DIRECTIONS)})")
+    try:
+        vol = int(vol_str)
+        if not (0 <= vol <= VOLUME_MAX):
+            errors.append(f"volume {vol} out of range [0, {VOLUME_MAX}]")
+    except ValueError:
+        errors.append(f"non-integer volume {vol_str!r}")
+    return errors
+
+
+def validate_audio(payload) -> list[str]:
+    """Return list of validation errors for an audio payload."""
+    errors = []
+    if not isinstance(payload, (list, bytes)):
+        return [f"expected list or bytes, got {type(payload).__name__}"]
+    n = len(payload)
+    if n == 0:
+        errors.append("empty audio packet")
+    elif n != AUDIO_PACKET_SIZE:
+        errors.append(f"unexpected packet size {n} (expected {AUDIO_PACKET_SIZE})")
+    if isinstance(payload, list):
+        oob = [s for s in payload if not (SAMPLE_MIN <= s <= SAMPLE_MAX)]
+        if oob:
+            errors.append(f"{len(oob)} sample(s) out of signed 8-bit range")
+    return errors
 
 
 def main():
@@ -51,11 +93,11 @@ def main():
     print(f"      Connected.")
     print(f"[2/3] Waiting up to {args.timeout}s for direction + audio messages ...")
 
-    conn.settimeout(args.timeout)
     unpacker = msgpack.Unpacker(raw=False)
 
     seen = {"direction": False, "audio": False}
     counts = {"direction": 0, "audio": 0, "unknown": 0}
+    warnings: list[str] = []
     deadline = time.monotonic() + args.timeout
 
     try:
@@ -80,6 +122,9 @@ def main():
 
                 if topic == "direction":
                     counts["direction"] += 1
+                    errs = validate_direction(payload)
+                    if errs:
+                        warnings.extend(f"direction payload: {e}" for e in errs)
                     if not seen["direction"]:
                         seen["direction"] = True
                         try:
@@ -90,6 +135,9 @@ def main():
 
                 elif topic == "audio":
                     counts["audio"] += 1
+                    errs = validate_audio(payload)
+                    if errs:
+                        warnings.extend(f"audio payload: {e}" for e in errs)
                     if not seen["audio"]:
                         seen["audio"] = True
                         n = len(payload) if isinstance(payload, (list, bytes)) else "?"
@@ -116,11 +164,16 @@ def main():
     if counts["unknown"]:
         print(f"      unknown messages  : {counts['unknown']}")
 
+    for w in warnings:
+        print(f"WARN  {w}")
+
     failures = []
     if not seen["direction"]:
         failures.append("no 'direction' notifications received")
     if not seen["audio"]:
         failures.append("no 'audio' notifications received")
+    if warnings:
+        failures.extend(warnings)
 
     if failures:
         for f in failures:

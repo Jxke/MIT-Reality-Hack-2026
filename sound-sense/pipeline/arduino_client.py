@@ -32,12 +32,16 @@ class ArduinoClient:
         with self._lock:
             return dict(self._latest)
 
+    SUBSCRIBE_TOPICS = ["direction", "audio"]
+
     def _connect(self) -> socket.socket:
         while True:
             try:
                 conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                 conn.connect(self.socket_path)
-                logging.info(f"Connected to arduino-router at {self.socket_path}")
+                # MsgPack-RPC request: [0, msgid, "subscribe", [topics...]]
+                conn.sendall(msgpack.packb([0, 1, "subscribe", self.SUBSCRIBE_TOPICS]))
+                logging.info(f"Connected to arduino-router at {self.socket_path}, subscribed to {self.SUBSCRIBE_TOPICS}")
                 return conn
             except OSError as e:
                 logging.warning(f"arduino-router not available ({e}), retrying in {self.RECONNECT_DELAY}s")

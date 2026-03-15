@@ -32,12 +32,8 @@ arduino-cli compile --fqbn "$FQBN" ./
 arduino-cli upload --fqbn "$FQBN"
 
 echo ""
-echo "=== Waiting for MCU boot to complete (8s) ==="
-sleep 6
-
-echo ""
-echo "=== Restarting arduino-router ==="
-sudo systemctl restart arduino-router
+echo "=== Restarting arduino-router (with UART drain) ==="
+"$SCRIPT_DIR/restart-router.sh"
 
 echo ""
 echo "Done. Sketch deployed and arduino-router restarted."

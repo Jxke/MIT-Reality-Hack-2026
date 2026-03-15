@@ -62,6 +62,7 @@ ElevenLabs/.env
 *.7z
 *.rar
 *.unitypackage
+*.bin
 
 # OS / tooling
 .DS_Store

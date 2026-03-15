@@ -1,3 +1,0 @@
-"""
-SoundSight Backend Package
-"""

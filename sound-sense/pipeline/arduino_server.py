@@ -1,12 +1,19 @@
-import json
 import logging
 import socket
 import threading
 
+import msgpack
+
 
 class ArduinoServer:
-    """TCP server the Arduino connects to. Accepts one client at a time and
-    tracks the latest JSON message received from it."""
+    """TCP server the Arduino RouterBridge connects to.
+
+    Expects MsgPack-framed messages of the form [topic, payload] matching
+    the sketch's Bridge.notify() calls:
+
+      ["direction", "front,150"]   — direction + peak volume string
+      ["audio",     [0, -3, 5, …]] — signed 8-bit PCM samples
+    """
 
     def __init__(self, host: str, port: int):
         self.host = host
@@ -24,26 +31,47 @@ class ArduinoServer:
 
     def _handle(self, conn: socket.socket, addr):
         logging.info(f"Arduino connected from {addr}")
-        buf = ""
+        unpacker = msgpack.Unpacker(raw=False)
         try:
             while True:
-                data = conn.recv(1024).decode()
+                data = conn.recv(4096)
                 if not data:
                     break
-                buf += data
-                while "\n" in buf:
-                    line, buf = buf.split("\n", 1)
-                    try:
-                        parsed = json.loads(line)
-                        with self._lock:
-                            self._latest = parsed
-                    except json.JSONDecodeError:
-                        logging.warning(f"Invalid JSON from Arduino: {line!r}")
+                unpacker.feed(data)
+                for msg in unpacker:
+                    self._process(msg)
         except OSError as e:
             logging.warning(f"Arduino connection error: {e}")
         finally:
             conn.close()
             logging.info(f"Arduino disconnected from {addr}")
+
+    def _process(self, msg):
+        if not isinstance(msg, (list, tuple)) or len(msg) < 2:
+            logging.warning(f"Unexpected message format: {msg!r}")
+            return
+
+        topic, payload = msg[0], msg[1]
+
+        if topic == "direction":
+            # payload: "front,150"
+            try:
+                dir_str, vol_str = payload.split(",", 1)
+                with self._lock:
+                    self._latest["direction"] = dir_str
+                    self._latest["volume"] = int(vol_str)
+                logging.info(f"Direction: {dir_str}, volume: {vol_str}")
+            except (ValueError, AttributeError) as e:
+                logging.warning(f"Bad direction payload {payload!r}: {e}")
+
+        elif topic == "audio":
+            # payload: list of int8 PCM samples
+            with self._lock:
+                self._latest["audio"] = payload
+            logging.debug(f"Audio packet: {len(payload)} samples")
+
+        else:
+            logging.debug(f"Unknown topic: {topic!r}")
 
     def _run(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:

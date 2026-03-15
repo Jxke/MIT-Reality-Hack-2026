@@ -100,13 +100,13 @@ static const char* detectDirection(long a0, long a1, long a2, long a3) {
 
 // =================================================================
 void setup() {
-    Bridge.begin();
+    Bridge.begin();      // keep the proven order
     Monitor.begin();
     delay(200);
 
     analogReadResolution(12);   // 0-4095, DC center ~2048
 
-    delay(5000);  // wait for Debian services to start
+    delay(5000);  // give Linux/Python time to start
     Monitor.println("MCU ready | 4-mic | A0+A3 voice stream | direction");
 }
 
@@ -138,6 +138,7 @@ void loop() {
         MsgPack::arr_t<int8_t> pkt;
         for (int i = 0; i < AUDIO_BUFSIZE; i++) pkt.push_back(audioBuf[i]);
         Bridge.notify("audio", pkt);
+        Monitor.println("Audio packet sent");
     }
 
     // Accumulate raw DC-removed amplitudes for direction detection.

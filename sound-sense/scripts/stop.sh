@@ -15,9 +15,3 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 podman-compose down
-
-# Stop arduino-router if we started it
-if [[ -f /tmp/arduino-router.pid ]]; then
-  kill "$(cat /tmp/arduino-router.pid)" 2>/dev/null && echo "arduino-router stopped"
-  rm -f /tmp/arduino-router.pid
-fi

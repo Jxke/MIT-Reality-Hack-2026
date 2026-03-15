@@ -7,10 +7,10 @@ import msgpack
 
 
 class ArduinoClient:
-    """Client that connects to arduino-router's MsgPack-RPC service.
+    """Client that connects to arduino-router's Unix socket MsgPack-RPC service.
 
-    arduino-router listens on ARDUINO_HOST:ARDUINO_PORT and streams
-    MsgPack-RPC notifications from the sketch's Bridge.notify() calls:
+    arduino-router listens on ARDUINO_SOCKET and streams MsgPack-RPC
+    notifications from the sketch's Bridge.notify() calls:
 
       [2, "direction", "front,150"]   — direction + peak volume
       [2, "audio",    [0, -3, 5, …]] — signed 8-bit PCM samples
@@ -18,9 +18,8 @@ class ArduinoClient:
 
     RECONNECT_DELAY = 3  # seconds between reconnect attempts
 
-    def __init__(self, host: str, port: int):
-        self.host = host
-        self.port = port
+    def __init__(self, socket_path: str):
+        self.socket_path = socket_path
         self._latest: dict = {}
         self._lock = threading.Lock()
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -35,9 +34,9 @@ class ArduinoClient:
     def _connect(self) -> socket.socket:
         while True:
             try:
-                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                conn.connect((self.host, self.port))
-                logging.info(f"Connected to arduino-router at {self.host}:{self.port}")
+                conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                conn.connect(self.socket_path)
+                logging.info(f"Connected to arduino-router at {self.socket_path}")
                 return conn
             except OSError as e:
                 logging.warning(f"arduino-router not available ({e}), retrying in {self.RECONNECT_DELAY}s")

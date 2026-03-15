@@ -14,6 +14,12 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
+echo "=== arduino-router ==="
+systemctl is-active --quiet arduino-router \
+  && systemctl status arduino-router --no-pager -l \
+  || echo "arduino-router is not running"
+
+echo ""
 echo "=== Containers ==="
 podman-compose ps
 

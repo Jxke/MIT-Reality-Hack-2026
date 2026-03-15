@@ -13,8 +13,7 @@ from whisper_client import transcribe
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-ARDUINO_HOST = os.environ.get("ARDUINO_HOST", "0.0.0.0")
-ARDUINO_PORT = int(os.environ.get("ARDUINO_PORT", "9000"))
+ARDUINO_SOCKET = os.environ.get("ARDUINO_SOCKET", "/var/run/arduino-router.sock")
 AR_HOST      = os.environ.get("AR_HOST", "0.0.0.0")
 AR_PORT      = int(os.environ.get("AR_PORT", "9001"))
 POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL", "1.0"))
@@ -34,7 +33,7 @@ def _arduino_audio_to_wav(samples: list) -> bytes:
 
 
 def main():
-    arduino = ArduinoClient(ARDUINO_HOST, ARDUINO_PORT)
+    arduino = ArduinoClient(ARDUINO_SOCKET)
     ar_server = ARServer(AR_HOST, AR_PORT)
 
     arduino.start()

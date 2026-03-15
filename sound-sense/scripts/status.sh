@@ -15,9 +15,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 echo "=== arduino-router ==="
-systemctl is-active --quiet arduino-router \
-  && systemctl status arduino-router --no-pager -l \
-  || echo "arduino-router is not running"
+systemctl is-active arduino-router 2>/dev/null || true
 
 echo ""
 echo "=== Containers ==="

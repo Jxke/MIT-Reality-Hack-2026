@@ -11,7 +11,6 @@ services:
       --model /models/${WHISPER_MODEL}
       --threads 4
       --language en
-      --no-speech-thr 0.3
     restart: unless-stopped
 
   pipeline:
@@ -28,6 +27,8 @@ services:
       - AR_PORT=${AR_PORT}
       - POLL_INTERVAL=${POLL_INTERVAL}
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - CLIP_DEBUG_DIR=${CLIP_DEBUG_DIR:-/home/arduino/vad_clips}
     volumes:
       - /run/user/1000/pulse/native:/run/user/1000/pulse/native
+      - ${CLIP_DEBUG_DIR:-/home/arduino/vad_clips}:${CLIP_DEBUG_DIR:-/home/arduino/vad_clips}
     restart: unless-stopped

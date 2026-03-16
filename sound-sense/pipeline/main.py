@@ -1,3 +1,4 @@
+import collections
 import logging
 import os
 import time
@@ -14,12 +15,35 @@ ARDUINO_BRIDGE_HOST = os.environ.get("ARDUINO_BRIDGE_HOST", "127.0.0.1")
 ARDUINO_BRIDGE_PORT = int(os.environ.get("ARDUINO_BRIDGE_PORT", "7000"))
 AR_HOST       = os.environ.get("AR_HOST", "0.0.0.0")
 AR_PORT       = int(os.environ.get("AR_PORT", "9001"))
-POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL", "1.0"))
+POLL_INTERVAL  = float(os.environ.get("POLL_INTERVAL", "1.0"))
+CLIP_DEBUG_DIR = os.environ.get("CLIP_DEBUG_DIR", "/tmp/vad_clips")
+CLIP_DEBUG_MAX = 3
 
 # Set to True to use the Arduino's onboard mics (VAD-batched via bridge_shim).
 # Set to False to use the USB mic via sounddevice.
 USE_ARDUINO_MIC = os.environ.get("USE_ARDUINO_MIC", "false").lower() == "true"
 LOG_DIRECTION   = os.environ.get("LOG_DIRECTION", "false").lower() == "true"
+
+
+_clip_ring: collections.deque[str] = collections.deque(maxlen=CLIP_DEBUG_MAX)
+_clip_counter = 0
+
+
+def _save_debug_clip(audio: bytes) -> str:
+    global _clip_counter
+    _clip_counter += 1
+    os.makedirs(CLIP_DEBUG_DIR, exist_ok=True)
+    path = os.path.join(CLIP_DEBUG_DIR, f"clip_{_clip_counter:04d}.wav")
+    with open(path, "wb") as f:
+        f.write(audio)
+    if len(_clip_ring) == _clip_ring.maxlen:
+        try:
+            os.remove(_clip_ring[0])
+        except OSError:
+            pass
+    _clip_ring.append(path)
+    logging.info(f"Saved debug clip: {path}")
+    return path
 
 
 def main():
@@ -61,6 +85,7 @@ def main():
             time.sleep(POLL_INTERVAL)
             continue
 
+        _save_debug_clip(audio)
         text = transcribe(audio)
 
         if text:

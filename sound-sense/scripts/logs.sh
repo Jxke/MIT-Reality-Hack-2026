@@ -18,5 +18,5 @@ echo "=== bridge shim logs (direction only) ==="
 arduino-app-cli app logs user:bridge-shim 2>/dev/null | grep "direction" | tail -20
 
 echo ""
-echo "=== Container logs (direction only, following) ==="
-podman-compose logs -f --names | grep --line-buffered "direction"
+echo "=== Container logs (VAD + direction, following) ==="
+podman-compose logs -f --names | grep --line-buffered -E "VAD:|direction"

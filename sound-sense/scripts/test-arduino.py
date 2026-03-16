@@ -30,13 +30,12 @@ SOCKET_PATH = "/var/run/arduino-router.sock"
 DEFAULT_TIMEOUT = 10  # seconds to wait for both message types
 
 VALID_DIRECTIONS = {"front", "back", "left", "right", "none"}
-VOLUME_MAX = 2048   # 12-bit ADC range
+VOLUME_MAX = 2048    # 12-bit ADC range
 AUDIO_PACKET_SIZE = 128  # samples per packet (~16ms @ 8000 Hz)
 SAMPLE_MIN, SAMPLE_MAX = -128, 127  # signed 8-bit PCM
 
 
 def validate_direction(payload) -> list[str]:
-    """Return list of validation errors for a direction payload."""
     errors = []
     if not isinstance(payload, str):
         return [f"expected str, got {type(payload).__name__}"]
@@ -56,7 +55,6 @@ def validate_direction(payload) -> list[str]:
 
 
 def validate_audio(payload) -> list[str]:
-    """Return list of validation errors for an audio payload."""
     errors = []
     if not isinstance(payload, (list, bytes)):
         return [f"expected list or bytes, got {type(payload).__name__}"]
@@ -90,11 +88,12 @@ def main():
         print(f"FAIL  Cannot connect: {e}")
         sys.exit(1)
 
-    print(f"      Connected.")
+    for i, topic in enumerate(["direction", "audio"]):
+        conn.sendall(msgpack.packb([0, i, "provide", [topic]]))
+    print(f"      Connected, sent provide requests.")
     print(f"[2/3] Waiting up to {args.timeout}s for direction + audio messages ...")
 
     unpacker = msgpack.Unpacker(raw=False)
-
     seen = {"direction": False, "audio": False}
     counts = {"direction": 0, "audio": 0, "unknown": 0}
     warnings: list[str] = []
@@ -116,6 +115,7 @@ def main():
             for msg in unpacker:
                 if not isinstance(msg, (list, tuple)) or len(msg) < 3 or msg[0] != 2:
                     counts["unknown"] += 1
+                    print(f"      unknown: {msg!r}")
                     continue
 
                 topic, payload = msg[1], msg[2]
@@ -145,9 +145,6 @@ def main():
 
                 else:
                     counts["unknown"] += 1
-
-                if seen["direction"] and seen["audio"]:
-                    break
 
             if seen["direction"] and seen["audio"]:
                 break

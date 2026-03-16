@@ -13,7 +13,8 @@ from whisper_client import transcribe
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-ARDUINO_SOCKET = os.environ.get("ARDUINO_SOCKET", "/var/run/arduino-router.sock")
+ARDUINO_BRIDGE_HOST = os.environ.get("ARDUINO_BRIDGE_HOST", "127.0.0.1")
+ARDUINO_BRIDGE_PORT = int(os.environ.get("ARDUINO_BRIDGE_PORT", "7000"))
 AR_HOST      = os.environ.get("AR_HOST", "0.0.0.0")
 AR_PORT      = int(os.environ.get("AR_PORT", "9001"))
 POLL_INTERVAL = float(os.environ.get("POLL_INTERVAL", "1.0"))
@@ -46,7 +47,7 @@ def main():
                 "timestamp": time.time(),
             })
 
-    arduino = ArduinoClient(ARDUINO_SOCKET, on_message=on_arduino_message)
+    arduino = ArduinoClient(ARDUINO_BRIDGE_HOST, ARDUINO_BRIDGE_PORT, on_message=on_arduino_message)
     arduino.start()
 
     mic_source = "arduino" if USE_ARDUINO_MIC else "USB"

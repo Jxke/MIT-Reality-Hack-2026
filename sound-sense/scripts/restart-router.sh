@@ -12,5 +12,8 @@ sudo timeout 5 dd if=/dev/ttyHS1 of=/dev/null bs=1 2>/dev/null || true
 echo "=== Starting arduino-router ==="
 sudo systemctl start arduino-router
 
-echo "=== Restarting pipeline container (socket refresh) ==="
+echo "=== Restarting bridge shim ==="
+arduino-app-cli app restart user:bridge-shim
+
+echo "=== Restarting pipeline container ==="
 cd "$(dirname "$0")/.." && podman-compose restart pipeline

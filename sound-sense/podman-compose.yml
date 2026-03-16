@@ -20,12 +20,12 @@ services:
     environment:
       - USE_ARDUINO_MIC=${USE_ARDUINO_MIC}
       - WHISPER_URL=http://localhost:8080
-      - ARDUINO_SOCKET=${ARDUINO_SOCKET}
+      - ARDUINO_BRIDGE_HOST=${ARDUINO_BRIDGE_HOST}
+      - ARDUINO_BRIDGE_PORT=${ARDUINO_BRIDGE_PORT}
       - AR_HOST=0.0.0.0
       - AR_PORT=${AR_PORT}
       - POLL_INTERVAL=${POLL_INTERVAL}
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
     volumes:
       - /run/user/1000/pulse/native:/run/user/1000/pulse/native
-      - /var/run/arduino-router.sock:/var/run/arduino-router.sock
     restart: unless-stopped

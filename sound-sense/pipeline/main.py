@@ -71,6 +71,9 @@ def main():
     mic_source = "arduino (VAD)" if USE_ARDUINO_MIC else "USB (VAD)"
     logging.info(f"Pipeline running (mic source: {mic_source})")
 
+    if not USE_ARDUINO_MIC:
+        audio.list_devices()
+
     while True:
         if USE_ARDUINO_MIC:
             audio = vad_batcher.get_segment()

@@ -40,17 +40,39 @@ SoundSense provides directional audio and speech awareness to users with hearing
 ## Repo Layout
 
 ```
-Arduino/
-  sketch/                # MCU firmware (direction events via RouterBridge)
-  python/main.py         # UNO Q Linux-side TCP server + rebroadcast
-  bridge_mic/            # Experimental ESP32 I2S mic bridge
-ElevenLabs/
-  backend/               # Python backend (audio, VAD, STT, classifier, TCP client)
-  requirements.txt
-  README.md              # Detailed backend setup & troubleshooting
-Unity/                   # Unity client project (not included here)
-Design/                  # Design artifacts
-debug_audio/             # Saved audio chunks when enabled
+sound-sense/
+  mcu/
+    sketch/sketch.ino    # MCU firmware — reads 4-mic array, emits Bridge.notify() events
+    bridge_shim.py       # arduino-app-cli managed app; bridges Bridge.notify() to TCP (port 7000)
+  pipeline/
+    main.py              # Main loop — VAD → Whisper → AR server
+    arduino_client.py    # MsgPack-RPC TCP client for bridge_shim
+    vad_batcher.py       # WebRTC VAD; accumulates 8kHz PCM segments
+    whisper_client.py    # HTTP client for whisper-server
+    ar_server.py         # WebSocket server → Unity/AR client (port 9001)
+    audio.py             # USB mic capture helpers
+    Dockerfile
+    requirements.txt
+  whisper/
+    Dockerfile           # Builds whisper.cpp server from source
+    models/              # ggml-base.en.bin (gitignored, add manually)
+  podman-compose.yml     # Defines pipeline + whisper-stt services
+  scripts/
+    start.sh             # First-time start (MCU health check, bridge-shim deploy, compose up)
+    stop.sh              # Tear down containers
+    rebuild.sh           # Rebuild + restart a single service
+    logs.sh              # Tail logs for a service
+    status.sh            # Show container and bridge-shim status
+    deploy-mcu.sh        # Sync bridge_shim.py to ArduinoApps and restart it
+    serial-monitor.sh    # Connect to MCU serial monitor (port 7500)
+    restart-router.sh    # Restart arduino-router daemon
+    test-arduino.py      # Smoke-test bridge_shim TCP connection
+  .env                   # Runtime config (Whisper model, clip dir, remote scp target)
+Unity/
+  Custom Built Packages/
+    GradientUI/          # Unity AR overlay — TCP receiver + directional gradient UI
+documents/               # Architecture notes (Arduino comms, container setup)
+assets/                  # Images for README
 ```
 
 ## Architecture (At a Glance)

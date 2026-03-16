@@ -19,8 +19,10 @@ fi
 
 SERVICE="$1"
 
-echo "=== Syncing and restarting bridge shim ==="
-cp "$SCRIPT_DIR/../mcu/bridge_shim.py" /home/arduino/ArduinoApps/bridge-shim/python/main.py
-arduino-app-cli app restart user:bridge-shim
+if [[ "$SERVICE" == "pipeline" ]]; then
+  echo "=== Syncing and restarting bridge shim ==="
+  cp "$SCRIPT_DIR/../mcu/bridge_shim.py" /home/arduino/ArduinoApps/bridge-shim/python/main.py
+  arduino-app-cli app restart user:bridge-shim
+fi
 
 podman-compose up --build --force-recreate -t 0 -d "$SERVICE"

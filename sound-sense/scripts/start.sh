@@ -25,4 +25,4 @@ cp "$SCRIPT_DIR/../mcu/bridge_shim.py" /home/arduino/ArduinoApps/bridge-shim/pyt
 arduino-app-cli app restart user:bridge-shim
 
 echo "=== Starting containers ==="
-podman-compose up --force-recreate $BUILD_FLAG -d
+podman-compose up --force-recreate -t 0 $BUILD_FLAG -d

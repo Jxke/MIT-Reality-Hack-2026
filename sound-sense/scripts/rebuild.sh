@@ -19,4 +19,4 @@ fi
 
 SERVICE="$1"
 
-podman-compose up --build --force-recreate -d "$SERVICE"
+podman-compose up --build --force-recreate -t 0 -d "$SERVICE"

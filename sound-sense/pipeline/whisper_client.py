@@ -14,7 +14,12 @@ def transcribe(audio_bytes: bytes, filename: str = "audio.wav") -> str:
             timeout=30,
         )
         resp.raise_for_status()
-        return resp.json().get("text", "").strip()
+        data = resp.json()
+        logging.info(f"Whisper raw response: {data}")
+        text = data.get("text", "").strip()
+        if not text:
+            logging.warning(f"Whisper returned no text. Full response: {data}")
+        return text
     except requests.RequestException as e:
         logging.error(f"Whisper transcription failed: {e}")
         return ""

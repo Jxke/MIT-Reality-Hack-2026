@@ -10,6 +10,8 @@ services:
       --port 8080
       --model /models/${WHISPER_MODEL}
       --threads 4
+      --language en
+      --no-speech-thr 0.3
     restart: unless-stopped
 
   pipeline:

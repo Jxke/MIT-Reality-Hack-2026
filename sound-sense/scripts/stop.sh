@@ -14,7 +14,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
-podman-compose down
+podman-compose down -t 0
 
 echo "=== Stopping bridge shim ==="
 arduino-app-cli app stop user:bridge-shim 2>/dev/null || true

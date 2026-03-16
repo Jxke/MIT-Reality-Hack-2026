@@ -108,6 +108,9 @@ def _to_pcm16(frame: list[int]) -> bytes:
 def _to_wav(frames: list[list[int]]) -> bytes:
     samples = np.concatenate([np.array(f, dtype=np.int8) for f in frames])
     audio = samples.astype(np.float32) / 128.0
+    peak = np.max(np.abs(audio))
+    if peak > 0:
+        audio = audio / peak * 0.95
     buf = io.BytesIO()
     sf.write(buf, audio, SAMPLE_RATE, format='WAV', subtype='PCM_16')
     buf.seek(0)

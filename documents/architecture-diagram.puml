@@ -1,16 +1,17 @@
 @startuml SoundSense Architecture
 
+!theme cyborg
+
 skinparam componentStyle rectangle
 skinparam defaultFontSize 12
 skinparam linetype ortho
-skinparam ArrowColor #555555
-skinparam backgroundColor #FAFAFA
+skinparam backgroundColor #242424
 
 title SoundSense — System Architecture
 
-rectangle "Arduino UNO Q Board" #E8F4FD {
+rectangle "Arduino UNO Q Board" {
 
-  rectangle "MCU Core (Zephyr RTOS)" #C9DEF0 {
+  rectangle "MCU Core (Zephyr RTOS)" {
     component [sketch.ino] as sketch
     component [4-mic array\n(KY-037, A0–A3)] as mics
     note right of sketch
@@ -20,8 +21,8 @@ rectangle "Arduino UNO Q Board" #E8F4FD {
     end note
   }
 
-  rectangle "Linux MPU (Debian)" #D6EAD6 {
-    rectangle "arduino-app-cli managed container" #B8D9B8 {
+  rectangle "Linux MPU (Debian)" {
+    rectangle "arduino-app-cli managed container" {
       component [bridge_shim.py\n(user:bridge-shim)] as shim
       note right of shim
         Bridge.provide() callbacks
@@ -36,9 +37,9 @@ rectangle "Arduino UNO Q Board" #E8F4FD {
       Unix socket: /var/run/arduino-router.sock
     end note
 
-    rectangle "Podman (host network)" #FDF3E3 {
+    rectangle "Podman (host network)" {
 
-      rectangle "pipeline container" #FAE5C0 {
+      rectangle "pipeline container" {
         component [arduino_client.py] as client
         component [VADBatcher\n(vad_batcher.py)] as vad
         component [main.py\n(orchestrator)] as main
@@ -47,7 +48,7 @@ rectangle "Arduino UNO Q Board" #E8F4FD {
         component [audio.py\n(USB mic path)] as audio
       }
 
-      rectangle "whisper-stt container" #FAE5C0 {
+      rectangle "whisper-stt container" {
         component [whisper-server\n(whisper.cpp :8080)\nggml-base.en.bin] as whisper
       }
     }
@@ -78,7 +79,7 @@ usbmic -[dashed]-> audio : sounddevice\n(USE_ARDUINO_MIC=false)
 audio -[dashed]-> main : get_audio() → WAV bytes
 
 ' Whisper
-wclient --> whisper : HTTP POST /inference\n(WAV bytes)
+wclient ---> whisper : HTTP POST /inference (WAV bytes)
 whisper --> wclient : {"text": "…"}
 
 ' AR output

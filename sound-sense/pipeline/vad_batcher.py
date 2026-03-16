@@ -60,8 +60,12 @@ class VADBatcher:
             self._buf.extend(samples)
             self._drain()
 
-    def get_segment(self) -> bytes | None:
-        """Return the next completed speech WAV, or None if none ready."""
+    def get_segment(self) -> tuple[bytes, bytes] | None:
+        """Return (normalized_wav, raw_wav) for the next completed speech segment, or None.
+
+        normalized_wav — peak-normalised to 0.95 FS; what gets sent to Whisper.
+        raw_wav        — unconverted amplitude straight from the Arduino int8 samples.
+        """
         with self._lock:
             return self._segments.popleft() if self._segments else None
 
@@ -106,7 +110,7 @@ class VADBatcher:
     def _flush(self):
         # Drop segments that are too short to contain real speech
         if len(self._voiced_frames) >= MIN_SPEECH_FRAMES:
-            self._segments.append(_to_wav(self._voiced_frames))
+            self._segments.append((_to_wav(self._voiced_frames), _to_raw_wav(self._voiced_frames)))
         self._voiced_frames = []
         self._triggered = False
         self._ring.clear()
@@ -133,6 +137,20 @@ def _to_wav(frames: list[list[int]]) -> bytes:
     peak = np.max(np.abs(audio))
     if peak > 0:
         audio = audio / peak * 0.95
+    buf = io.BytesIO()
+    sf.write(buf, audio, SAMPLE_RATE, format='WAV', subtype='PCM_16')
+    buf.seek(0)
+    return buf.read()
+
+
+def _to_raw_wav(frames: list[list[int]]) -> bytes:
+    """Convert accumulated int8 frames to WAV with no amplitude adjustment.
+
+    Preserves the original signal level from the Arduino — useful for comparing
+    against the normalised version to hear how much boost was applied.
+    """
+    samples = np.concatenate([np.array(f, dtype=np.int8) for f in frames])
+    audio = samples.astype(np.float32) / 128.0
     buf = io.BytesIO()
     sf.write(buf, audio, SAMPLE_RATE, format='WAV', subtype='PCM_16')
     buf.seek(0)

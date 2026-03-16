@@ -25,25 +25,30 @@ USE_ARDUINO_MIC = os.environ.get("USE_ARDUINO_MIC", "false").lower() == "true"
 LOG_DIRECTION   = os.environ.get("LOG_DIRECTION", "false").lower() == "true"
 
 
-_clip_ring: collections.deque[str] = collections.deque(maxlen=CLIP_DEBUG_MAX)
+# Each entry is a tuple of paths: (normalized_path, raw_path)
+_clip_ring: collections.deque[tuple[str, str]] = collections.deque(maxlen=CLIP_DEBUG_MAX)
 _clip_counter = 0
 
 
-def _save_debug_clip(audio: bytes) -> str:
+def _save_debug_clip(normalized_wav: bytes, raw_wav: bytes) -> tuple[str, str]:
     global _clip_counter
     _clip_counter += 1
     os.makedirs(CLIP_DEBUG_DIR, exist_ok=True)
-    path = os.path.join(CLIP_DEBUG_DIR, f"clip_{_clip_counter:04d}.wav")
-    with open(path, "wb") as f:
-        f.write(audio)
+    normalized_path = os.path.join(CLIP_DEBUG_DIR, f"clip_{_clip_counter:04d}_normalized.wav")
+    raw_path        = os.path.join(CLIP_DEBUG_DIR, f"clip_{_clip_counter:04d}_raw.wav")
+    with open(normalized_path, "wb") as f:
+        f.write(normalized_wav)
+    with open(raw_path, "wb") as f:
+        f.write(raw_wav)
     if len(_clip_ring) == _clip_ring.maxlen:
-        try:
-            os.remove(_clip_ring[0])
-        except OSError:
-            pass
-    _clip_ring.append(path)
-    logging.info(f"Saved debug clip: {path}")
-    return path
+        for old_path in _clip_ring[0]:
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+    _clip_ring.append((normalized_path, raw_path))
+    logging.info(f"Saved debug clips: {normalized_path}, {raw_path}")
+    return normalized_path, raw_path
 
 
 def main():
@@ -76,20 +81,25 @@ def main():
 
     while True:
         if USE_ARDUINO_MIC:
-            audio = vad_batcher.get_segment()
+            segment = vad_batcher.get_segment()
             arduino_data = arduino.get_latest()
             arduino_data.pop("audio", None)
+            if not segment:
+                time.sleep(POLL_INTERVAL)
+                continue
+            normalized_wav, raw_wav = segment
         else:
-            audio = get_audio()
+            normalized_wav = get_audio()
+            raw_wav = None
             arduino_data = arduino.get_latest()
             arduino_data.pop("audio", None)
+            if not normalized_wav:
+                time.sleep(POLL_INTERVAL)
+                continue
 
-        if not audio:
-            time.sleep(POLL_INTERVAL)
-            continue
-
-        _save_debug_clip(audio)
-        text = transcribe(audio)
+        if raw_wav is not None:
+            _save_debug_clip(normalized_wav, raw_wav)
+        text = transcribe(normalized_wav)
 
         if text:
             message = {

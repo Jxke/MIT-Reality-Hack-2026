@@ -14,4 +14,9 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
+echo "=== bridge shim logs ==="
+arduino-app-cli app logs user:bridge-shim 2>/dev/null | tail -20
+
+echo ""
+echo "=== Container logs (following) ==="
 podman-compose logs -f --names

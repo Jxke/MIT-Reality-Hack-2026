@@ -18,6 +18,10 @@ echo "=== arduino-router ==="
 systemctl is-active arduino-router 2>/dev/null || true
 
 echo ""
+echo "=== bridge shim (arduino-app-cli) ==="
+arduino-app-cli app list 2>/dev/null | grep bridge-shim || echo "not found"
+
+echo ""
 echo "=== Containers ==="
 podman-compose ps
 

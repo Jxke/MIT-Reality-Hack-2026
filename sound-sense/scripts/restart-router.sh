@@ -13,6 +13,7 @@ echo "=== Starting arduino-router ==="
 sudo systemctl start arduino-router
 
 echo "=== Restarting bridge shim ==="
+cp "$(dirname "$0")/../mcu/bridge_shim.py" /home/arduino/ArduinoApps/bridge-shim/python/main.py
 arduino-app-cli app restart user:bridge-shim
 
 echo "=== Restarting pipeline container ==="

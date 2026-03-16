@@ -20,5 +20,9 @@ if [[ "${1:-}" == "--rebuild" ]]; then
   BUILD_FLAG="--build"
 fi
 
+echo "=== Syncing and starting bridge shim ==="
+cp "$SCRIPT_DIR/../mcu/bridge_shim.py" /home/arduino/ArduinoApps/bridge-shim/python/main.py
+arduino-app-cli app restart user:bridge-shim
 
+echo "=== Starting containers ==="
 podman-compose up --force-recreate $BUILD_FLAG -d

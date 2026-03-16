@@ -20,6 +20,17 @@ if [[ "${1:-}" == "--rebuild" ]]; then
   BUILD_FLAG="--build"
 fi
 
+echo "=== Checking MCU health ==="
+if nc -w 4 localhost 7500 2>/dev/null | grep -q "Audio packet sent"; then
+  echo "MCU OK — audio packets flowing."
+else
+  echo ""
+  echo "WARNING: No audio packets seen on port 7500."
+  echo "The MCU sketch may have halted. A full power cycle of the board is required."
+  echo "Press Enter to continue anyway, or Ctrl-C to abort."
+  read -r
+fi
+
 echo "=== Syncing and starting bridge shim ==="
 cp "$SCRIPT_DIR/../mcu/bridge_shim.py" /home/arduino/ArduinoApps/bridge-shim/python/main.py
 arduino-app-cli app restart user:bridge-shim

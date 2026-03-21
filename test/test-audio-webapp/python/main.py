@@ -119,8 +119,13 @@ _INDEX_HTML = f"""\
     .dot  {{ width: 11px; height: 11px; border-radius: 50%; background: #bbb; flex-shrink: 0; }}
     .dot.live {{ background: #3c3; animation: pulse 1.2s infinite; }}
     @keyframes pulse {{ 0%,100%{{opacity:1}} 50%{{opacity:.35}} }}
-    canvas {{ display: block; margin-top: 24px; width: 100%; height: 80px;
-              background: #111; border-radius: 6px; }}
+    canvas {{ display: block; margin-top: 24px; width: 100%; border-radius: 6px;
+              background: #111; }}
+    #scope {{ height: 80px; }}
+    #freq  {{ height: 120px; margin-top: 8px; }}
+    .freq-labels {{ display: flex; justify-content: space-between;
+                    font-size: 11px; color: #666; font-family: monospace;
+                    margin: 2px 0 0; padding: 0; }}
   </style>
 </head>
 <body>
@@ -132,6 +137,10 @@ _INDEX_HTML = f"""\
 
   <div id="status"><span class="dot" id="dot"></span><span id="txt">Idle</span></div>
   <canvas id="scope" width="640" height="80"></canvas>
+  <canvas id="freq"  width="640" height="120"></canvas>
+  <div class="freq-labels">
+    <span>0 Hz</span><span>500</span><span>1k</span><span>2k</span><span>4k</span>
+  </div>
 
   <script>
   (function () {{
@@ -139,32 +148,73 @@ _INDEX_HTML = f"""\
     const PREBUF   = 0.10;
     const canvas   = document.getElementById('scope');
     const ctx2d    = canvas.getContext('2d');
+    const fCanvas  = document.getElementById('freq');
+    const fCtx     = fCanvas.getContext('2d');
     const dot      = document.getElementById('dot');
     const txt      = document.getElementById('txt');
     const startBtn = document.getElementById('startBtn');
     const stopBtn  = document.getElementById('stopBtn');
 
     let audioCtx = null, ws = null, nextPlayTime = 0;
+    let analyser = null, rafId = null;
     const scopeBuf = new Float32Array(canvas.width);
+
+    // ── frequency display ───────────────────────────────────────────
+    const FFT_SIZE = 1024;  // → 512 bins, 0–4000 Hz at 8 kHz
+
+    function drawFreq() {{
+      rafId = requestAnimationFrame(drawFreq);
+      if (!analyser) return;
+
+      const bins = new Uint8Array(analyser.frequencyBinCount); // 512
+      analyser.getByteFrequencyData(bins);
+
+      const W = fCanvas.width, H = fCanvas.height;
+      fCtx.clearRect(0, 0, W, H);
+
+      const barW = W / bins.length;
+      for (let i = 0; i < bins.length; i++) {{
+        const v   = bins[i];                        // 0–255
+        const pct = v / 255;
+        const h   = pct * H;
+        // green → yellow → red as amplitude rises
+        fCtx.fillStyle = `hsl(${{120 - pct * 120}}, 90%, 45%)`;
+        fCtx.fillRect(i * barW, H - h, Math.ceil(barW), h);
+      }}
+
+      // frequency tick lines at 500 / 1k / 2k Hz
+      fCtx.strokeStyle = 'rgba(255,255,255,0.15)';
+      fCtx.lineWidth   = 1;
+      for (const hz of [500, 1000, 2000]) {{
+        const x = Math.round(hz * FFT_SIZE / RATE * W / (FFT_SIZE / 2));
+        fCtx.beginPath(); fCtx.moveTo(x, 0); fCtx.lineTo(x, H); fCtx.stroke();
+      }}
+    }}
 
     function setStatus(msg, live) {{
       txt.textContent = msg;
       dot.className   = 'dot' + (live ? ' live' : '');
     }}
 
+    // Samples displayed across the full canvas width (controls scroll speed)
+    const SAMPLES_PER_PIX = Math.max(1, Math.round(RATE / canvas.width));
+
     function drawScope(f32) {{
-      const step = Math.max(1, Math.floor(f32.length / canvas.width));
-      const tmp  = new Float32Array(canvas.width);
-      for (let x = 0; x < canvas.width; x++) {{
+      // How many pixels does this packet advance the scope?
+      const pixCount = Math.max(1, Math.ceil(f32.length / SAMPLES_PER_PIX));
+      // Scroll existing content left
+      scopeBuf.copyWithin(0, pixCount);
+      // Fill the rightmost pixCount pixels with peak values from this packet
+      for (let p = 0; p < pixCount; p++) {{
+        const start = Math.floor(p * f32.length / pixCount);
+        const end   = Math.floor((p + 1) * f32.length / pixCount);
         let peak = 0;
-        for (let j = 0; j < step; j++) {{
-          const v = Math.abs(f32[x * step + j] || 0);
+        for (let i = start; i < end; i++) {{
+          const v = Math.abs(f32[i] || 0);
           if (v > peak) peak = v;
         }}
-        tmp[x] = peak;
+        scopeBuf[canvas.width - pixCount + p] = peak;
       }}
-      scopeBuf.copyWithin(0, canvas.width - tmp.length);
-      scopeBuf.set(tmp, canvas.width - tmp.length);
 
       ctx2d.clearRect(0, 0, canvas.width, canvas.height);
       ctx2d.strokeStyle = '#3f3';
@@ -187,7 +237,8 @@ _INDEX_HTML = f"""\
       abuf.copyToChannel(f32, 0);
       const src = audioCtx.createBufferSource();
       src.buffer = abuf;
-      src.connect(audioCtx.destination);
+      src.connect(analyser);
+      analyser.connect(audioCtx.destination);
 
       const now = audioCtx.currentTime;
       if (nextPlayTime < now + 0.01) nextPlayTime = now + PREBUF;
@@ -201,6 +252,10 @@ _INDEX_HTML = f"""\
       if (ws) return;
       audioCtx     = new (window.AudioContext || window.webkitAudioContext)({{ sampleRate: RATE }});
       nextPlayTime = audioCtx.currentTime + PREBUF;
+      analyser          = audioCtx.createAnalyser();
+      analyser.fftSize  = FFT_SIZE;
+      analyser.smoothingTimeConstant = 0.75;
+      drawFreq();
 
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(proto + '//' + location.host + '/ws');
@@ -223,8 +278,11 @@ _INDEX_HTML = f"""\
     }});
 
     stopBtn.addEventListener('click', () => {{
+      if (rafId)    {{ cancelAnimationFrame(rafId); rafId = null; }}
       if (ws)       {{ ws.close();       ws = null; }}
       if (audioCtx) {{ audioCtx.close(); audioCtx = null; }}
+      analyser = null;
+      fCtx.clearRect(0, 0, fCanvas.width, fCanvas.height);
       startBtn.disabled = false;
       stopBtn.disabled  = true;
       setStatus('Stopped', false);

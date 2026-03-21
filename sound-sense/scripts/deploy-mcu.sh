@@ -28,8 +28,8 @@ done
 
 echo ""
 echo "=== Compile and Upload to Arduino UNO Q ==="
-arduino-cli compile --fqbn "$FQBN" ./
-arduino-cli upload --fqbn "$FQBN"
+arduino-cli compile --fqbn "$FQBN" "$SKETCH_DIR"
+arduino-cli upload  --fqbn "$FQBN" "$SKETCH_DIR"
 
 echo ""
 echo "=== Restarting arduino-router (with UART drain) ==="

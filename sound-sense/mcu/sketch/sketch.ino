@@ -66,13 +66,13 @@ static int16_t voiceFilter(int idx, int raw) {
     float centered = (float)raw - dcEst[idx];
 
     // Noise gate — suppress sub-threshold chatter
-    if (fabsf(centered) < 12.0f) centered = 0.0f;
+    if (fabsf(centered) < 3.0f) centered = 0.0f;
 
     // Low-pass smoothing — preserve voice, attenuate HF noise
-    smoothed[idx]  = 0.65f * smoothed[idx] + 0.35f * centered;
+    smoothed[idx]  = 0.10f * smoothed[idx] + 0.90f * centered;
 
     // 10x gain + int16 saturation (matches mictest.ino scaling)
-    float s = smoothed[idx] * 10.0f;
+    float s = smoothed[idx] * 60.0f;
     if (s >  32767.0f) s =  32767.0f;
     if (s < -32768.0f) s = -32768.0f;
     return (int16_t)s;
@@ -124,13 +124,9 @@ void loop() {
     int rawA2 = analogRead(A2);
     int rawA3 = analogRead(A3);
 
-    // Apply voice filter to A0 (2 o'clock) and A3 (11 o'clock)
+    // Single mic: A0 (2 o'clock, front-right voice mic)
     int16_t filtA0 = voiceFilter(0, rawA0);
-    int16_t filtA3 = voiceFilter(1, rawA3);
-
-    // Mix A0+A3 to mono, scale int16->int8 for compact streaming
-    int16_t mixed = (int16_t)(((int32_t)filtA0 + (int32_t)filtA3) >> 1);
-    audioBuf[audioBufIdx++] = (int8_t)(mixed >> 8);
+    audioBuf[audioBufIdx++] = (int8_t)(filtA0 >> 8);
 
     // Flush audio packet to Debian when buffer is full
     if (audioBufIdx >= AUDIO_BUFSIZE) {

@@ -3,6 +3,7 @@ import logging
 import os
 import time
 
+import audio
 from audio import get_audio
 from arduino_client import ArduinoClient
 from ar_server import ARServer

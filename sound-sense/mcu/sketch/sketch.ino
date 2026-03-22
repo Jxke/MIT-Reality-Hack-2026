@@ -65,9 +65,6 @@ static int16_t voiceFilter(int idx, int raw) {
     dcEst[idx]     = 0.995f * dcEst[idx] + 0.005f * (float)raw;
     float centered = (float)raw - dcEst[idx];
 
-    // Noise gate — suppress sub-threshold chatter
-    if (fabsf(centered) < 3.0f) centered = 0.0f;
-
     // Low-pass smoothing — preserve voice, attenuate HF noise
     smoothed[idx]  = 0.10f * smoothed[idx] + 0.90f * centered;
 
@@ -118,23 +115,32 @@ void loop() {
     if ((int32_t)(now - nextSampleUs) < 0) return;
     nextSampleUs += US_PER_SAMPLE;
 
-    // Read all 4 electret mics
-    int rawA0 = analogRead(A0);
+    // Read direction mics first, then A0 last so the ADC mux settles
+    // on A0 without residual voltage from switching away from A3.
     int rawA1 = analogRead(A1);
     int rawA2 = analogRead(A2);
     int rawA3 = analogRead(A3);
+    int rawA0 = analogRead(A0);
 
     // Single mic: A0 (2 o'clock, front-right voice mic)
     int16_t filtA0 = voiceFilter(0, rawA0);
     audioBuf[audioBufIdx++] = (int8_t)(filtA0 >> 8);
 
-    // Flush audio packet to Debian when buffer is full
+    // Flush audio packet to Debian when buffer is full.
+    // pkt is static to avoid heap allocation on every flush.
+    // Monitor.println removed — it shared UART with Bridge.notify()
+    // and caused a blocking stall every 16 ms (62.5 Hz pulsing artifact).
     if (audioBufIdx >= AUDIO_BUFSIZE) {
         audioBufIdx = 0;
-        MsgPack::arr_t<int8_t> pkt;
+        static MsgPack::arr_t<int8_t> pkt;
+        pkt.clear();
         for (int i = 0; i < AUDIO_BUFSIZE; i++) pkt.push_back(audioBuf[i]);
         Bridge.notify("audio", pkt);
-        Monitor.println("Audio packet sent");
+        // Resync sample clock after notify — Bridge.notify() may stall the loop
+        // long enough that nextSampleUs falls behind, causing a burst of catch-up
+        // samples at ADC speed (~25 kHz) instead of 8 kHz. That burst is audible
+        // as a 62.5 Hz pulse (once per 128-sample packet).
+        nextSampleUs = micros() + US_PER_SAMPLE;
     }
 
     // Accumulate raw DC-removed amplitudes for direction detection.

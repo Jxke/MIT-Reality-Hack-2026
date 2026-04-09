@@ -1,0 +1,34 @@
+services:
+  whisper-stt:
+    build: ./whisper
+    network_mode: host
+    volumes:
+      - ./whisper/models:/models:ro
+    command: >
+      /app/build/bin/whisper-server
+      --host 0.0.0.0
+      --port 8080
+      --model /models/${WHISPER_MODEL}
+      --threads 4
+      --language en
+    restart: unless-stopped
+
+  pipeline:
+    build: ./pipeline
+    network_mode: host
+    depends_on:
+      - whisper-stt
+    environment:
+      - USE_ARDUINO_MIC=${USE_ARDUINO_MIC}
+      - WHISPER_URL=http://localhost:8080
+      - ARDUINO_BRIDGE_HOST=${ARDUINO_BRIDGE_HOST}
+      - ARDUINO_BRIDGE_PORT=${ARDUINO_BRIDGE_PORT}
+      - AR_HOST=0.0.0.0
+      - AR_PORT=${AR_PORT}
+      - POLL_INTERVAL=${POLL_INTERVAL}
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - CLIP_DEBUG_DIR=${CLIP_DEBUG_DIR:-/home/arduino/vad_clips}
+    volumes:
+      - /run/user/1000/pulse/native:/run/user/1000/pulse/native
+      - ${CLIP_DEBUG_DIR:-/home/arduino/vad_clips}:${CLIP_DEBUG_DIR:-/home/arduino/vad_clips}
+    restart: unless-stopped

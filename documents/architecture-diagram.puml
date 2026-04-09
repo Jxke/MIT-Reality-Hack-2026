@@ -1,0 +1,91 @@
+@startuml SoundSense Architecture
+
+!theme cyborg
+
+skinparam componentStyle rectangle
+skinparam defaultFontSize 12
+skinparam linetype ortho
+skinparam backgroundColor #242424
+
+title SoundSense — System Architecture
+
+rectangle "Arduino UNO Q Board" {
+
+  rectangle "MCU Core (Zephyr RTOS)" {
+    component [sketch.ino] as sketch
+    component [4-mic array\n(KY-037, A0–A3)] as mics
+    note right of sketch
+      Bridge.notify("audio", pkt)   @ 62.5 Hz (8 kHz / 128 samples)
+      Bridge.notify("direction", …) @ ~10 Hz
+      Monitor.println(…)            @ every packet → port 7500
+    end note
+  }
+
+  rectangle "Linux MPU (Debian)" {
+    rectangle "arduino-app-cli managed container" {
+      component [bridge_shim.py\n(user:bridge-shim)] as shim
+      note right of shim
+        Bridge.provide() callbacks
+        Re-serves as MsgPack-RPC TCP
+        on port 7000 (via docker-proxy)
+      end note
+    }
+    component [arduino-router] as router
+    note bottom of router
+      Reads MCU UART (/dev/ttyHS1)
+      Exposes port 7500 (Monitor output)
+      Unix socket: /var/run/arduino-router.sock
+    end note
+
+    rectangle "Podman (host network)" {
+
+      rectangle "pipeline container" {
+        component [arduino_client.py] as client
+        component [VADBatcher\n(vad_batcher.py)] as vad
+        component [main.py\n(orchestrator)] as main
+        component [whisper_client.py] as wclient
+        component [ar_server.py\n:9001] as arserver
+        component [audio.py\n(USB mic path)] as audio
+      }
+
+      rectangle "whisper-stt container" {
+        component [whisper-server\n(whisper.cpp :8080)\nggml-base.en.bin] as whisper
+      }
+    }
+  }
+}
+
+component [Unity / AR Client] as unity
+component [USB Microphone] as usbmic
+
+' MCU → Linux MPU
+mics --> sketch : analog read
+sketch --> router : UART\n(/dev/ttyHS1)
+router --> shim : arduino.app_utils\nBridge.provide()
+router -[dashed]-> "port 7500" : Monitor.println()\n(MCU health check)
+
+' bridge_shim → pipeline
+shim --> client : MsgPack-RPC TCP\n:7000
+
+' pipeline internals
+client --> vad : feed(samples)\n[audio topic]
+client --> main : on_message(direction)
+vad --> main : get_segment() → WAV bytes
+main --> wclient : transcribe(wav)
+main --> arserver : broadcast(caption/direction)
+
+' USB mic path (alternative)
+usbmic -[dashed]-> audio : sounddevice\n(USE_ARDUINO_MIC=false)
+audio -[dashed]-> main : get_audio() → WAV bytes
+
+' Whisper
+wclient ---> whisper : HTTP POST /inference (WAV bytes)
+whisper --> wclient : {"text": "…"}
+
+' AR output
+arserver --> unity : TCP JSON frames\n"S{…}E\n"
+
+' Debug clips
+main -[dashed]-> "host /home/arduino/vad_clips" : _save_debug_clip()\n(last 3 WAV segments)
+
+@enduml

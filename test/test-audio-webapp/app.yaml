@@ -1,0 +1,5 @@
+name: mic-monitor
+description: "Stream MCU mic audio to browser (connects to bridge-shim:7000, serves HTTP+WS on :8082)"
+icon: 🎙
+ports: [8082]
+bricks: []

@@ -1,0 +1,99 @@
+import logging
+import socket
+import threading
+import time
+
+import msgpack
+
+
+class ArduinoClient:
+    """Client that connects to bridge_shim's TCP MsgPack-RPC service.
+
+    bridge_shim runs on the Arduino Linux MPU via arduino.app_utils and
+    forwards Bridge.notify() calls as MsgPack-RPC notifications:
+
+      [2, "direction", "front,150"]   — direction + peak volume
+      [2, "audio",    [0, -3, 5, …]] — signed 8-bit PCM samples
+    """
+
+    RECONNECT_DELAY = 3  # seconds between reconnect attempts
+
+    def __init__(self, host: str, port: int, on_message=None):
+        self.host = host
+        self.port = port
+        self._latest: dict = {}
+        self._lock = threading.Lock()
+        self._on_message = on_message
+        self._thread = threading.Thread(target=self._run, daemon=True)
+
+    def start(self):
+        self._thread.start()
+
+    def get_latest(self) -> dict:
+        with self._lock:
+            return dict(self._latest)
+
+    def _connect(self) -> socket.socket:
+        while True:
+            try:
+                conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                conn.connect((self.host, self.port))
+                logging.info(f"Connected to bridge_shim at {self.host}:{self.port}")
+                return conn
+            except OSError as e:
+                logging.warning(f"bridge_shim not available ({e}), retrying in {self.RECONNECT_DELAY}s")
+                time.sleep(self.RECONNECT_DELAY)
+
+    def _handle(self, conn: socket.socket):
+        unpacker = msgpack.Unpacker(raw=False)
+        try:
+            while True:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                unpacker.feed(data)
+                for msg in unpacker:
+                    self._process(msg)
+        except OSError as e:
+            logging.warning(f"bridge_shim connection lost: {e}")
+        finally:
+            conn.close()
+
+    def _process(self, msg):
+        # MsgPack-RPC notification: [2, method, params]
+        if not isinstance(msg, (list, tuple)) or len(msg) < 3 or msg[0] != 2:
+            logging.debug(f"Ignoring non-notification message: {msg!r}")
+            return
+
+        topic, payload = msg[1], msg[2]
+
+        if topic == "direction":
+            try:
+                dir_str, vol_str = payload.split(",", 1)
+                with self._lock:
+                    self._latest["direction"] = dir_str
+                    self._latest["volume"] = int(vol_str)
+                logging.debug(f"Direction: {dir_str}, volume: {vol_str}")
+                if self._on_message:
+                    self._on_message("direction", {"direction": dir_str, "volume": int(vol_str)})
+            except (ValueError, AttributeError) as e:
+                logging.warning(f"Bad direction payload {payload!r}: {e}")
+
+        elif topic == "audio":
+            with self._lock:
+                self._latest["audio"] = payload
+            logging.debug(f"Audio packet: {len(payload)} samples")
+            if self._on_message:
+                self._on_message("audio", {"samples": payload})
+
+        else:
+            logging.debug(f"Unknown topic: {topic!r}")
+            if self._on_message:
+                self._on_message(topic, payload)
+
+    def _run(self):
+        while True:
+            conn = self._connect()
+            self._handle(conn)
+            logging.info(f"Reconnecting to bridge_shim in {self.RECONNECT_DELAY}s")
+            time.sleep(self.RECONNECT_DELAY)

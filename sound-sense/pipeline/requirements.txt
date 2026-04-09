@@ -1,0 +1,6 @@
+msgpack
+requests
+numpy
+sounddevice
+soundfile
+webrtcvad-wheels
